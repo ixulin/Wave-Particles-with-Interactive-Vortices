@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db2e2eb69e0d7fc4982cc682f7bc6478, type: 3}
+  m_Name: WaterParams
+  m_EditorClassIdentifier: 
+  heightScale: 0.14
+  waveParticleSpeedScale: 0.00005
+  flowSpeed: 0.000931
+  dxScale: 0.03
+  dzScale: 0.03
+  timeScale: 1.3
+  foamScale: 5
+  blurRadius: 15
+  timeStepFluid: 0.03
+  fluidCellSize: 0.6
+  fluidDissipation: 0.994
+  vorticityScale: 0.64
+  splatDirU: 1
+  splatDirV: 0
+  splatScale: 0.00593
+  splatDensityU: 0.5
+  splatDensityV: 0.5
+  splatDensityRadius: 0.1
+  splatDensityScale: 0.01
+  jacobiIterations: 40
+  fluidSimulationInterval: 30
+  brushScale: 0.1
+  brushStrength: 1
+  obstacleScale: 1.8
+  obstacleThresholdFluid: 0.3
+  obstacleThresholdWave: 0.12
+  edgeTessFactor: 7
+  insideTessFactor: 5
+  waterCellCount: 50
+  textureWidth: 500
+  textureHeight: 500
+  textureWidthFluid: 142
+  textureHeightFluid: 142
+  lightHeight: 9.35
+  extinctionCoeff: -0.41
+  shininess: 340
+  fresnelBias: 0
+  fresnelPow: 3
+  fresnelScale: 0.68
+  foamPow: 9.6
+  renderMode: 11

@@ -61,6 +61,14 @@ struct DS_OUTPUT
     float3 PosW     : TEXCOORD1;
 };
 
+struct DS_OUTPUT_2
+{
+    float4 pos      : SV_POSITION;
+    float2 texCoord : TEXCOORD0;
+    float3 wpos     : TEXCOORD1;
+    float3 nor      : TEXCOORD2;
+};
+
 struct PS_MRT_OUTPUT
 {
     float4 col1 : SV_TARGET0;
@@ -150,6 +158,17 @@ float3 FlowHeightForNormal_impl(float2 uv, float time,
     float3 nor;
     FlowHeightWithNormal_impl(uv, time, flowT, flowS, flowedT, flowedS, texW, texH, nor);
     return normalize(nor);
+}
+
+float3 ObstacleMapToNormal(float2 uv, Texture2D obstacleT, SamplerState obstacleS, float texW, float texH)
+{
+    float dU = clamp(obstacleT.SampleLevel(obstacleS, uv + float2(1.0/texW, 0), 0).x, 0, 1)
+             - clamp(obstacleT.SampleLevel(obstacleS, uv - float2(1.0/texW, 0), 0).x, 0, 1);
+    float dV = clamp(obstacleT.SampleLevel(obstacleS, uv + float2(0, 1.0/texH), 0).x, 0, 1)
+             - clamp(obstacleT.SampleLevel(obstacleS, uv - float2(0, 1.0/texH), 0).x, 0, 1);
+    float3 ddV = float3(0, dV, 0) + float3(0, 0, 2.0/texH);
+    float3 ddU = float3(0, dU, 0) + float3(2.0/texW, 0, 0);
+    return cross(normalize(ddV), normalize(ddU));
 }
 
 // Fullscreen pass vertex shader (used by all Blit-style shaders)

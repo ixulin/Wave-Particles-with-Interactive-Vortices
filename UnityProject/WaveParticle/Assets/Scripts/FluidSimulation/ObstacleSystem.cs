@@ -33,7 +33,7 @@ public class ObstacleSystem
         matCreate.SetFloat(ID_brushScale,    param.brushScale);
         matCreate.SetFloat(ID_brushStrength, param.brushStrength);
         matCreate.SetFloat(ID_brushOffsetU,  brushUV.x * 2f - 1f); // UV [0,1] -> NDC [-1,1]
-        matCreate.SetFloat(ID_brushOffsetV,  brushUV.y * 2f - 1f);
+        matCreate.SetFloat(ID_brushOffsetV, -(brushUV.y * 2f - 1f)); // flip Y: DX RenderTexture is Y-down
 
         using var cb = new CommandBuffer { name = "Draw Obstacle" };
         cb.SetRenderTarget(mgr.rtObstacleCreate);

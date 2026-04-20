@@ -85,6 +85,7 @@
     <None Include="Assets\Shaders\WaveParticles\WaveParticle_Rasterize.shader" />
     <None Include="Assets\Shaders\FluidSimulation\Fluid_SplatDensity.shader" />
     <None Include="Assets\Shaders\Obstacle\Obstacle_BlurH.shader" />
+    <None Include="Assets\Shaders\Obstacle\Obstacle_Visual.shader" />
     <None Include="Assets\Shaders\WaveParticles\WaveParticle_PostProcess_H.shader" />
     <None Include="Assets\Shaders\Obstacle\Obstacle_BlurV.shader" />
     <None Include="Assets\Shaders\Obstacle\Obstacle_Create.shader" />

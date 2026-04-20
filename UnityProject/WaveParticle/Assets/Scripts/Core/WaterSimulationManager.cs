@@ -91,19 +91,33 @@ public class WaterSimulationManager : MonoBehaviour
     {
         if (Input.GetMouseButton(0))
         {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            var cam = Camera.main;
+            if (cam == null) return;
+
+            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             Plane waterPlane = new Plane(Vector3.up, transform.position);
             if (waterPlane.Raycast(ray, out float enter))
             {
-                Vector3 hit = ray.GetPoint(enter);
+                Vector3 hit   = ray.GetPoint(enter);
                 Vector3 local = transform.InverseTransformPoint(hit);
-                // Map from mesh local [-0.5,0.5] to UV [0,1]  (mesh goes 0..1 in x/z)
-                brushUV = new Vector2(local.x, local.z);
+
+                // Map local space to UV [0,1] using the mesh bounding box.
+                // WaterMeshBuilder builds vertices at ((u-0.5)*sizeX, 0, (v-0.5)*sizeZ),
+                // so UV = local / size + 0.5.
+                var mf     = GetComponent<MeshFilter>();
+                var bounds = mf != null && mf.sharedMesh != null
+                             ? mf.sharedMesh.bounds
+                             : new Bounds(Vector3.zero, new Vector3(2f, 0f, 2f));
+
+                brushUV = new Vector2(
+                    (local.x - bounds.min.x) / bounds.size.x,
+                    (local.z - bounds.min.z) / bounds.size.z
+                );
                 pendingObstacleDraw = true;
             }
         }
 
-        if (Input.GetKeyDown(KeyCode.C))
+        if (Input.GetKeyDown(KeyCode.C) && obstacleSystem != null)
             obstacleSystem.ClearObstacles();
     }
 

@@ -8,6 +8,8 @@ public class WaterSurfaceRenderer
     readonly Texture2D foamTex;
     readonly Texture2D flowmapTex;
 
+    Material obstacleVisualMat;
+
     static readonly int ID_albedo      = Shader.PropertyToID("_AlbedoTex");
     static readonly int ID_flowmap     = Shader.PropertyToID("_FlowmapTex");
     static readonly int ID_deviation   = Shader.PropertyToID("_DeviationTex");
@@ -49,6 +51,24 @@ public class WaterSurfaceRenderer
 
         if (foamTex    != null) mat.SetTexture(ID_albedo,  foamTex);
         if (flowmapTex != null) mat.SetTexture(ID_flowmap, flowmapTex);
+
+        CreateObstacleVisual();
+    }
+
+    void CreateObstacleVisual()
+    {
+        var shader = Shader.Find("Water/Obstacle_Visual");
+        if (shader == null) { Debug.LogError("Shader 'Water/Obstacle_Visual' not found"); return; }
+
+        var obsGO = new GameObject("WaterObstacleVisual");
+        obsGO.transform.SetParent(mgr.transform, false);
+
+        var mf = obsGO.AddComponent<MeshFilter>();
+        var waterMF = mgr.GetComponent<MeshFilter>();
+        if (waterMF != null) mf.sharedMesh = waterMF.sharedMesh;
+
+        obstacleVisualMat = new Material(shader);
+        obsGO.AddComponent<MeshRenderer>().sharedMaterial = obstacleVisualMat;
     }
 
     public void UpdateMaterialProperties(int frameTime)
@@ -87,5 +107,16 @@ public class WaterSurfaceRenderer
         mat.SetFloat(ID_foamScale,   param.foamScale);
         mat.SetFloat(ID_foamPow,     param.foamPow);
         mat.SetFloat(ID_obstThreshW, param.obstacleThresholdWave);
+
+        // Obstacle visual mesh
+        if (obstacleVisualMat != null)
+        {
+            obstacleVisualMat.SetTexture("_ObstacleFinal",    mgr.rtObstacleFinal);
+            obstacleVisualMat.SetFloat("_ObstacleScale",      param.obstacleScale);
+            obstacleVisualMat.SetFloat("_EdgeTessFactor",     param.edgeTessFactor);
+            obstacleVisualMat.SetFloat("_InsideTessFactor",   param.insideTessFactor);
+            obstacleVisualMat.SetFloat("_TextureWidth",       param.textureWidthFluid);
+            obstacleVisualMat.SetFloat("_TextureHeight",      param.textureHeightFluid);
+        }
     }
 }

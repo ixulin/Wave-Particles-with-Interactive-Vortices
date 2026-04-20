@@ -3,36 +3,36 @@ using UnityEngine.Rendering;
 
 public class ObstacleSystem
 {
-    readonly SimulationParameters  param;
+    readonly SimulationParameters param;
     readonly WaterSimulationManager mgr;
 
     readonly Material matCreate;
     readonly Material matBlurH;
     readonly Material matBlurV;
-    readonly Mesh     circleMesh;
+    readonly Mesh circleMesh;
 
-    static readonly int ID_brushScale    = Shader.PropertyToID("_BrushScale");
+    static readonly int ID_brushScale = Shader.PropertyToID("_BrushScale");
     static readonly int ID_brushStrength = Shader.PropertyToID("_BrushStrength");
-    static readonly int ID_brushOffsetU  = Shader.PropertyToID("_BrushOffsetU");
-    static readonly int ID_brushOffsetV  = Shader.PropertyToID("_BrushOffsetV");
-    static readonly int ID_sourceTex     = Shader.PropertyToID("_SourceTex");
-    static readonly int ID_texWidth      = Shader.PropertyToID("_TextureWidth");
+    static readonly int ID_brushOffsetU = Shader.PropertyToID("_BrushOffsetU");
+    static readonly int ID_brushOffsetV = Shader.PropertyToID("_BrushOffsetV");
+    static readonly int ID_sourceTex = Shader.PropertyToID("_SourceTex");
+    static readonly int ID_texWidth = Shader.PropertyToID("_TextureWidth");
 
     public ObstacleSystem(SimulationParameters param, WaterSimulationManager mgr)
     {
         this.param = param;
-        this.mgr   = mgr;
+        this.mgr = mgr;
         matCreate = Load("Water/Obstacle_Create");
-        matBlurH  = Load("Water/Obstacle_BlurH");
-        matBlurV  = Load("Water/Obstacle_BlurV");
+        matBlurH = Load("Water/Obstacle_BlurH");
+        matBlurV = Load("Water/Obstacle_BlurV");
         circleMesh = BuildCircleMesh(16);
     }
 
     public void DrawObstacle(Vector2 brushUV)
     {
-        matCreate.SetFloat(ID_brushScale,    param.brushScale);
+        matCreate.SetFloat(ID_brushScale, param.brushScale);
         matCreate.SetFloat(ID_brushStrength, param.brushStrength);
-        matCreate.SetFloat(ID_brushOffsetU,  brushUV.x * 2f - 1f); // UV [0,1] -> NDC [-1,1]
+        matCreate.SetFloat(ID_brushOffsetU, brushUV.x * 2f - 1f); // UV [0,1] -> NDC [-1,1]
         matCreate.SetFloat(ID_brushOffsetV, -(brushUV.y * 2f - 1f)); // flip Y: DX RenderTexture is Y-down
 
         using var cb = new CommandBuffer { name = "Draw Obstacle" };
@@ -63,19 +63,19 @@ public class ObstacleSystem
 
     static Mesh BuildCircleMesh(int segments)
     {
-        var verts   = new Vector3[segments + 1];
-        var tris    = new int[segments * 3];
+        var verts = new Vector3[segments + 1];
+        var tris = new int[segments * 3];
         verts[0] = Vector3.zero;
         for (int i = 0; i < segments; i++)
         {
             float a = 2f * Mathf.PI * i / segments;
-            verts[i + 1] = new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f);
-            tris[i * 3]     = 0;
+            verts[i + 1] = new Vector3(Mathf.Cos(a) * 2, Mathf.Sin(a) * 2, 0f);
+            tris[i * 3] = 0;
             tris[i * 3 + 1] = i + 1;
             tris[i * 3 + 2] = (i + 1) % segments + 1;
         }
         var m = new Mesh();
-        m.vertices  = verts;
+        m.vertices = verts;
         m.triangles = tris;
         return m;
     }

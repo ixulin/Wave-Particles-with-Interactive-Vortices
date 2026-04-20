@@ -71,12 +71,14 @@ public class WaterDebugUI : MonoBehaviour
             mgr.rtDensity.Current,
             mgr.rtPressure.Current,
             mgr.rtDivergence,
+            mgr.rtObstacleCreate,
+            mgr.rtObstacleBlur,
             mgr.rtObstacleFinal,
             mgr.rtWaveParticle,
             mgr.rtPostProcessV1,
             mgr.rtPostProcessV2
         };
-        string[] labels = { "Velocity","Density","Pressure","Divergence","Obstacle","WaveParticle","PostV1","PostV2" };
+        string[] labels = { "Velocity","Density","Pressure","Divergence","ObsCreate","ObsBlur","ObsFinal","WaveParticle","PostV1","PostV2" };
 
         int cols = 4;
         int startX = Screen.width  - (THUMB + PAD) * cols - PAD;

@@ -30,13 +30,13 @@ public class SceneSetup : MonoBehaviour
         var waterGO = new GameObject("Water");
         waterGO.transform.position = Vector3.zero;
 
-        var meshFilter   = waterGO.AddComponent<MeshFilter>();
+        var meshFilter = waterGO.AddComponent<MeshFilter>();
         var meshRenderer = waterGO.AddComponent<MeshRenderer>();
-        var meshBuilder  = waterGO.AddComponent<WaterMeshBuilder>();
+        var meshBuilder = waterGO.AddComponent<WaterMeshBuilder>();
         meshBuilder.cellCountX = cellCount;
         meshBuilder.cellCountZ = cellCount;
-        meshBuilder.sizeX      = waterSize;
-        meshBuilder.sizeZ      = waterSize;
+        meshBuilder.sizeX = waterSize;
+        meshBuilder.sizeZ = waterSize;
 
         if (waterMaterial != null)
             meshRenderer.sharedMaterial = waterMaterial;
@@ -47,12 +47,12 @@ public class SceneSetup : MonoBehaviour
         }
 
         var simMgr = waterGO.AddComponent<WaterSimulationManager>();
-        simMgr.param        = param;
-        simMgr.foamTexture  = foamTexture;
+        simMgr.param = param;
+        simMgr.foamTexture = foamTexture;
         simMgr.flowmapTexture = flowmapTexture;
 
         var debugUI = waterGO.AddComponent<WaterDebugUI>();
-        debugUI.mgr   = simMgr;
+        debugUI.mgr = simMgr;
         debugUI.param = param;
 
         // ---- Camera ----
@@ -65,13 +65,14 @@ public class SceneSetup : MonoBehaviour
             camGO.AddComponent<AudioListener>();
         }
 
-        var orbit = cam.gameObject.GetComponent<OrbitCamera>() ?? cam.gameObject.AddComponent<OrbitCamera>();
-        orbit.target   = waterGO.transform;
-        orbit.distance = 4f;
+        // var orbit = cam.gameObject.GetComponent<OrbitCamera>() ?? cam.gameObject.AddComponent<OrbitCamera>();
+        // orbit.target   = waterGO.transform;
+        // orbit.distance = 4f;
 
-        cam.clearFlags       = CameraClearFlags.Skybox;
-        cam.backgroundColor  = new Color(0.1f, 0.2f, 0.3f);
-        cam.transform.position = new Vector3(0, 3, -4);
+        cam.clearFlags = CameraClearFlags.Skybox;
+        cam.backgroundColor = new Color(0.1f, 0.2f, 0.3f);
+        // cam.transform.position = new Vector3(0, 3, -4);
+        cam.transform.position = new Vector3(0, 3, 0);
         cam.transform.LookAt(Vector3.zero);
 
         Debug.Log("[SceneSetup] Water simulation scene created. Press Play to run.");

@@ -118,7 +118,7 @@ Material:
     - _InsideTessFactor: 5
     - _LightHeight: 9.35
     - _Metallic: 0
-    - _Mode: 0
+    - _Mode: 11
     - _ObstacleThresholdWave: 0.12
     - _OcclusionStrength: 1
     - _Parallax: 0.02

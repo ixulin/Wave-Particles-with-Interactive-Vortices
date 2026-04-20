@@ -62,6 +62,9 @@ public class WaterSurfaceRenderer
 
         var obsGO = new GameObject("WaterObstacleVisual");
         obsGO.transform.SetParent(mgr.transform, false);
+        // Offset below water so flat areas are occluded by water via depth test;
+        // only obstacle "bumps" (raised by displacement) protrude above water.
+        obsGO.transform.localPosition = new Vector3(0f, -0.1f, 0f);
 
         var mf = obsGO.AddComponent<MeshFilter>();
         var waterMF = mgr.GetComponent<MeshFilter>();

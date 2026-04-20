@@ -47,13 +47,12 @@ public class SceneSetup : MonoBehaviour
         }
 
         var simMgr = waterGO.AddComponent<WaterSimulationManager>();
-        simMgr.param = param;
+        simMgr.SetParam(param);
         simMgr.foamTexture = foamTexture;
         simMgr.flowmapTexture = flowmapTexture;
 
         var debugUI = waterGO.AddComponent<WaterDebugUI>();
         debugUI.mgr = simMgr;
-        debugUI.param = param;
 
         // ---- Camera ----
         Camera cam = Camera.main;
@@ -65,13 +64,13 @@ public class SceneSetup : MonoBehaviour
             camGO.AddComponent<AudioListener>();
         }
 
-        // var orbit = cam.gameObject.GetComponent<OrbitCamera>() ?? cam.gameObject.AddComponent<OrbitCamera>();
-        // orbit.target   = waterGO.transform;
-        // orbit.distance = 4f;
+        var orbit = cam.gameObject.GetComponent<OrbitCamera>() ?? cam.gameObject.AddComponent<OrbitCamera>();
+        orbit.target = waterGO.transform;
+        orbit.distance = 4f;
 
         cam.clearFlags = CameraClearFlags.Skybox;
         cam.backgroundColor = new Color(0.1f, 0.2f, 0.3f);
-        // cam.transform.position = new Vector3(0, 3, -4);
+        cam.transform.position = new Vector3(0, 3, -4);
         cam.transform.position = new Vector3(0, 3, 0);
         cam.transform.LookAt(Vector3.zero);
 

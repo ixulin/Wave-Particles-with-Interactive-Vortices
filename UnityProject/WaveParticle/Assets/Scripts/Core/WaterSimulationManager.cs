@@ -4,7 +4,7 @@ using UnityEngine;
 public class WaterSimulationManager : MonoBehaviour
 {
     [Header("Configuration")]
-    public SimulationParameters param;
+    public SimulationParameters _param;
     public Texture2D foamTexture;
     public Texture2D flowmapTexture;
 
@@ -38,18 +38,7 @@ public class WaterSimulationManager : MonoBehaviour
 
     void Awake()
     {
-        if (param == null)
-        {
-            Debug.LogWarning("WaterSimulationManager: SimulationParameters not assigned, using defaults.");
-            param = ScriptableObject.CreateInstance<SimulationParameters>();
-        }
-        AllocateRenderTextures();
-        fluidSimulator = new FluidSimulator(param, this);
-        obstacleSystem = new ObstacleSystem(param, this);
-        waveParticleSystem = new WaveParticleSystem(param, this);
-        wavePostProcess = new WaveParticlePostProcess(param, this);
-        waterSurfaceRenderer = new WaterSurfaceRenderer(param, this, foamTexture, flowmapTexture,
-                                                        GetComponent<MeshRenderer>().sharedMaterial);
+
     }
 
     void OnDestroy() => ReleaseAll();
@@ -71,7 +60,7 @@ public class WaterSimulationManager : MonoBehaviour
         obstacleSystem.RunBlurPass();
 
         // 2. Fluid simulation (every N frames)
-        if (frameCount % param.fluidSimulationInterval == 0)
+        if (frameCount % _param.fluidSimulationInterval == 0)
             fluidSimulator.RunFullPipeline();
 
         // 3. Wave particle rasterization
@@ -89,7 +78,7 @@ public class WaterSimulationManager : MonoBehaviour
 
     void HandleInput()
     {
-        if (Input.GetMouseButton(0))
+        if (Input.GetMouseButton(0) && Input.GetKey(KeyCode.LeftControl))
         {
             var cam = Camera.main;
             if (cam == null) return;
@@ -123,8 +112,8 @@ public class WaterSimulationManager : MonoBehaviour
 
     void AllocateRenderTextures()
     {
-        int fw = param.textureWidthFluid, fh = param.textureHeightFluid;
-        int mw = param.textureWidth, mh = param.textureHeight;
+        int fw = _param.textureWidthFluid, fh = _param.textureHeightFluid;
+        int mw = _param.textureWidth, mh = _param.textureHeight;
         var fp16 = RenderTextureFormat.ARGBHalf;
         var r8 = RenderTextureFormat.ARGB32;
 
@@ -190,4 +179,22 @@ public class WaterSimulationManager : MonoBehaviour
     {
         if (rt != null) { rt.Release(); Object.Destroy(rt); }
     }
+
+    internal void SetParam(SimulationParameters param)
+    {
+        _param = param; // Store reference for sub-systems
+        if (param == null)
+        {
+            Debug.LogWarning("WaterSimulationManager: SimulationParameters not assigned, using defaults.");
+            param = ScriptableObject.CreateInstance<SimulationParameters>();
+        }
+        AllocateRenderTextures();
+        fluidSimulator = new FluidSimulator(param, this);
+        obstacleSystem = new ObstacleSystem(param, this);
+        waveParticleSystem = new WaveParticleSystem(param, this);
+        wavePostProcess = new WaveParticlePostProcess(param, this);
+        waterSurfaceRenderer = new WaterSurfaceRenderer(param, this, foamTexture, flowmapTexture,
+                                                        GetComponent<MeshRenderer>().sharedMaterial);
+    }
+
 }

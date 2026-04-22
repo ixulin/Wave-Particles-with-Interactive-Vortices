@@ -40,7 +40,7 @@ Shader "Water/Fluid_Jacobi"
 
                 float4 bC    = _DivergenceTex.SampleLevel(sampler_linear_repeat, T, 0);
                 float  alpha = -_FluidCellSize * _FluidCellSize;
-                return 1.01 * (pW + pE + pS + pN + alpha * bC) * 0.25;
+                return (pW + pE + pS + pN + alpha * bC) * 0.25;
             }
             ENDHLSL
         }

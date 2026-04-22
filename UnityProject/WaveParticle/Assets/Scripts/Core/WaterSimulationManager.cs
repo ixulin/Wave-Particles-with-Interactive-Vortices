@@ -37,6 +37,10 @@ public class WaterSimulationManager : MonoBehaviour
     bool pendingObstacleDraw = false;
     Vector2 brushUV = Vector2.zero;
 
+    // Velocity impulse drag state
+    bool draggingVelocity = false;
+    Vector2 lastVelocityDragUV = Vector2.zero;
+
     void Awake()
     {
 
@@ -105,11 +109,65 @@ public class WaterSimulationManager : MonoBehaviour
                 brushUV.y = Mathf.Clamp01(brushUV.y);
                 pendingObstacleDraw = true;
             }
-            UnityEngine.Debug.Break(); // For profiling input handling and interaction logic
         }
+
+        HandleVelocityDrag();
 
         if (Input.GetKeyDown(KeyCode.C) && obstacleSystem != null)
             obstacleSystem.ClearObstacles();
+    }
+
+    void HandleVelocityDrag()
+    {
+        bool held = Input.GetMouseButton(0) && Input.GetKey(KeyCode.LeftShift);
+        if (!held)
+        {
+            draggingVelocity = false;
+            return;
+        }
+
+        if (!TryGetWaterUV(out Vector2 uv))
+            return;
+
+        if (!draggingVelocity)
+        {
+            draggingVelocity = true;
+            lastVelocityDragUV = uv;
+            return;
+        }
+
+        Vector2 delta = uv - lastVelocityDragUV;
+        lastVelocityDragUV = uv;
+
+        float dt = Mathf.Max(Time.deltaTime, 1e-4f);
+        Vector2 velUV = delta / dt;
+
+        if (velUV.sqrMagnitude > 1e-10f && fluidSimulator != null)
+            fluidSimulator.QueueVelocityImpulse(uv, velUV);
+    }
+
+    bool TryGetWaterUV(out Vector2 uv)
+    {
+        uv = Vector2.zero;
+        var cam = Camera.main;
+        if (cam == null) return false;
+
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        Plane waterPlane = new Plane(Vector3.up, transform.position);
+        if (!waterPlane.Raycast(ray, out float enter)) return false;
+
+        Vector3 hit = ray.GetPoint(enter);
+        Vector3 local = transform.InverseTransformPoint(hit);
+
+        var builder = GetComponent<WaterMeshBuilder>();
+        float sx = builder != null ? builder.sizeX : 2f;
+        float sz = builder != null ? builder.sizeZ : 2f;
+
+        uv = new Vector2(
+            Mathf.Clamp01(local.x / sx + 0.5f),
+            Mathf.Clamp01(local.z / sz + 0.5f)
+        );
+        return true;
     }
 
     void AllocateRenderTextures()

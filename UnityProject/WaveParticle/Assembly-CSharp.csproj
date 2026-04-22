@@ -80,6 +80,7 @@
   <ItemGroup>
     <None Include="Assets\Shaders\Include\WaterCommon.hlsl" />
     <None Include="Assets\Shaders\FluidSimulation\Fluid_SubtractGradient.shader" />
+    <None Include="Assets\Shaders\FluidSimulation\Fluid_SplatVelocityImpulse.shader" />
     <None Include="Assets\Shaders\FluidSimulation\Fluid_Jacobi.shader" />
     <None Include="Assets\Shaders\FluidSimulation\Fluid_Advect.shader" />
     <None Include="Assets\Shaders\WaveParticles\WaveParticle_Rasterize.shader" />

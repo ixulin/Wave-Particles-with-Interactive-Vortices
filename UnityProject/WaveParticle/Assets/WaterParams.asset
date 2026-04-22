@@ -26,13 +26,15 @@ MonoBehaviour:
   vorticityScale: 0.64
   splatDirU: 1
   splatDirV: 0
-  splatScale: 0
+  splatScale: 0.001
   splatDensityU: 0.5
   splatDensityV: 0.5
   splatDensityRadius: 0.1
   splatDensityScale: 0.01
   jacobiIterations: 40
   fluidSimulationInterval: 1
+  velocityImpulseRadius: 0.08
+  velocityImpulseStrength: 1.5
   brushScale: 0.1
   brushStrength: 1
   obstacleScale: 1.8
@@ -43,8 +45,8 @@ MonoBehaviour:
   waterCellCount: 50
   textureWidth: 500
   textureHeight: 500
-  textureWidthFluid: 142
-  textureHeightFluid: 142
+  textureWidthFluid: 500
+  textureHeightFluid: 500
   lightHeight: 9.35
   extinctionCoeff: -0.41
   shininess: 340

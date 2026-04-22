@@ -10,6 +10,7 @@ public class FluidSimulator
     readonly Material matAdvect;
     readonly Material matSplatVorticity;
     readonly Material matSplatDensity;
+    readonly Material matSplatImpulse;
     readonly Material matDivergence;
     readonly Material matJacobi;
     readonly Material matSubtractGradient;
@@ -34,6 +35,16 @@ public class FluidSimulator
     static readonly int ID_splatDensityV = Shader.PropertyToID("_SplatDensityV");
     static readonly int ID_splatDensityRadius = Shader.PropertyToID("_SplatDensityRadius");
     static readonly int ID_splatDensityScale = Shader.PropertyToID("_SplatDensityScale");
+    static readonly int ID_impulseCenterU = Shader.PropertyToID("_ImpulseCenterU");
+    static readonly int ID_impulseCenterV = Shader.PropertyToID("_ImpulseCenterV");
+    static readonly int ID_impulseRadius = Shader.PropertyToID("_ImpulseRadius");
+    static readonly int ID_impulseU = Shader.PropertyToID("_ImpulseU");
+    static readonly int ID_impulseV = Shader.PropertyToID("_ImpulseV");
+    static readonly int ID_impulseStrength = Shader.PropertyToID("_ImpulseStrength");
+
+    bool pendingImpulse;
+    Vector2 pendingImpulseCenter;
+    Vector2 pendingImpulseVelUV;
 
     public FluidSimulator(SimulationParameters param, WaterSimulationManager mgr)
     {
@@ -43,6 +54,7 @@ public class FluidSimulator
         matAdvect = Load("Water/Fluid_Advect");
         matSplatVorticity = Load("Water/Fluid_SplatVorticity");
         matSplatDensity = Load("Water/Fluid_SplatDensity");
+        matSplatImpulse = Load("Water/Fluid_SplatVelocityImpulse");
         matDivergence = Load("Water/Fluid_Divergence");
         matJacobi = Load("Water/Fluid_Jacobi");
         matSubtractGradient = Load("Water/Fluid_SubtractGradient");
@@ -53,8 +65,13 @@ public class FluidSimulator
         SetGlobalUniforms();
 
         RunAdvect(mgr.rtVelocity);
-        RunSplatVorticity();
         RunAdvect(mgr.rtDensity);
+        RunSplatVorticity();
+        if (pendingImpulse)
+        {
+            RunSplatVelocityImpulse();
+            pendingImpulse = false;
+        }
         RunSplatDensity();
         RunDivergence();
         RunJacobi();
@@ -102,6 +119,27 @@ public class FluidSimulator
         matSplatDensity.SetFloat(ID_splatDensityScale, param.splatDensityScale);
         Blit(mgr.rtDensity.Next, matSplatDensity);
         mgr.rtDensity.Swap();
+    }
+
+    public void QueueVelocityImpulse(Vector2 centerUV, Vector2 velUV)
+    {
+        pendingImpulse = true;
+        pendingImpulseCenter = centerUV;
+        pendingImpulseVelUV = velUV;
+    }
+
+    void RunSplatVelocityImpulse()
+    {
+        matSplatImpulse.SetTexture(ID_obstacleTex, mgr.rtObstacleFinal);
+        matSplatImpulse.SetTexture(ID_velocityTex, mgr.rtVelocity.Current);
+        matSplatImpulse.SetFloat(ID_impulseCenterU, pendingImpulseCenter.x);
+        matSplatImpulse.SetFloat(ID_impulseCenterV, pendingImpulseCenter.y);
+        matSplatImpulse.SetFloat(ID_impulseRadius, param.velocityImpulseRadius);
+        matSplatImpulse.SetFloat(ID_impulseU, pendingImpulseVelUV.x);
+        matSplatImpulse.SetFloat(ID_impulseV, pendingImpulseVelUV.y);
+        matSplatImpulse.SetFloat(ID_impulseStrength, param.velocityImpulseStrength);
+        Blit(mgr.rtVelocity.Next, matSplatImpulse);
+        mgr.rtVelocity.Swap();
     }
 
     void RunDivergence()

@@ -27,6 +27,8 @@ public class SimulationParameters : ScriptableObject
     public float splatDensityScale = 0.01f;
     public int jacobiIterations = 40;
     public int fluidSimulationInterval = 30;
+    public float velocityImpulseRadius = 0.08f;
+    public float velocityImpulseStrength = 1.5f;
 
     [Header("Obstacle")]
     public float brushScale = 0.1f;

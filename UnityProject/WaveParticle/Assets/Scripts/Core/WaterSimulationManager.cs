@@ -60,8 +60,8 @@ public class WaterSimulationManager : MonoBehaviour
         obstacleSystem.RunBlurPass();
 
         // 2. Fluid simulation (every N frames)
-        if (frameCount % _param.fluidSimulationInterval == 0)
-            fluidSimulator.RunFullPipeline();
+        // if (frameCount % _param.fluidSimulationInterval == 0)
+        fluidSimulator.RunFullPipeline();
 
         // 3. Wave particle rasterization
         waveParticleSystem.Rasterize(frameCount);

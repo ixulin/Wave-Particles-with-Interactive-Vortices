@@ -59,8 +59,10 @@ public class WaveParticlePostProcess
 
     void BlitMRT(RenderTargetIdentifier[] colorBuffers, RenderTargetIdentifier depthBuffer, Material mat)
     {
+        int w = param.textureWidth, h = param.textureHeight;
         using var cb = new CommandBuffer { name = "MRT PostProcess" };
         cb.SetRenderTarget(colorBuffers, depthBuffer);
+        cb.SetViewport(new Rect(0, 0, w, h));
         cb.DrawMesh(fullscreenQuad, Matrix4x4.identity, mat, 0, 0);
         Graphics.ExecuteCommandBuffer(cb);
     }

@@ -32,6 +32,7 @@ public class WaveParticleSystem
         using var cb = new CommandBuffer { name = "WaveParticle Rasterize" };
         cb.SetRenderTarget(mgr.rtWaveParticle);
         cb.ClearRenderTarget(false, true, Color.clear);
+        cb.SetViewport(new Rect(0, 0, param.textureWidth, param.textureHeight));
         cb.DrawMesh(particleMesh, Matrix4x4.identity, particleMaterial, 0, 0);
         Graphics.ExecuteCommandBuffer(cb);
     }

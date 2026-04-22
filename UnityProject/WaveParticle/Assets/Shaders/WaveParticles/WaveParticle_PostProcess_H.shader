@@ -10,7 +10,7 @@ Shader "Water/WaveParticle_PostProcess_H"
         Pass
         {
             HLSLPROGRAM
-            #pragma vertex   vert_fullscreen
+            #pragma vertex   vert
             #pragma fragment frag
             #pragma target   3.0
             #include "UnityCG.cginc"
@@ -31,13 +31,16 @@ Shader "Water/WaveParticle_PostProcess_H"
                 float4 col2 : SV_Target1;
             };
 
-            FragOut frag(VS_OUTPUT i)
+            float4 vert(float4 v : POSITION) : SV_Position { return float4(v.xy, 0.5, 1.0); }
+
+            FragOut frag(float4 pos : SV_Position)
             {
+                float2 uv = pos.xy / float2(_TextureWidth, _TextureHeight);
                 FragOut o;
                 o.col1 = float4(0, 0, 0, 0);
                 o.col2 = float4(0, 0, 0, 0);
 
-                float3 velAmp = _WaveParticleTex.SampleLevel(sampler_linear_repeat, i.texCoord, 0).xyz;
+                float3 velAmp = _WaveParticleTex.SampleLevel(sampler_linear_repeat, uv, 0).xyz;
                 float4 f123 = float4(velAmp.z, 0, 0.5 * velAmp.z, 1);
                 float4 f45v = float4(0, velAmp.z, sign(velAmp.z) * velAmp.xy);
 
@@ -46,8 +49,8 @@ Shader "Water/WaveParticle_PostProcess_H"
                     for (int k = 1; k <= _BlurRadius; k++)
                     {
                         float  offset  = k / float(_TextureWidth);
-                        float4 velAmpL = _WaveParticleTex.SampleLevel(sampler_linear_repeat, i.texCoord + float2( offset, 0), 0);
-                        float4 velAmpR = _WaveParticleTex.SampleLevel(sampler_linear_repeat, i.texCoord + float2(-offset, 0), 0);
+                        float4 velAmpL = _WaveParticleTex.SampleLevel(sampler_linear_repeat, uv + float2( offset, 0), 0);
+                        float4 velAmpR = _WaveParticleTex.SampleLevel(sampler_linear_repeat, uv + float2(-offset, 0), 0);
                         float  ampSum  = velAmpL.z + velAmpR.z;
                         float  ampDif  = velAmpL.z - velAmpR.z;
                         float3 f       = GetFilter(k / float(_BlurRadius));

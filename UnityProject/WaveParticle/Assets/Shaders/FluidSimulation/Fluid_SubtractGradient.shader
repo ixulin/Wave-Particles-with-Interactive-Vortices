@@ -7,7 +7,7 @@ Shader "Water/Fluid_SubtractGradient"
         Pass
         {
             HLSLPROGRAM
-            #pragma vertex   vert_fullscreen
+            #pragma vertex   vert
             #pragma fragment frag
             #include "UnityCG.cginc"
             #include "../Include/WaterCommon.hlsl"
@@ -17,9 +17,11 @@ Shader "Water/Fluid_SubtractGradient"
             Texture2D    _VelocityTex;
             SamplerState sampler_linear_repeat;
 
-            float4 frag(VS_OUTPUT i) : SV_Target
+            float4 vert(float4 v : POSITION) : SV_Position { return float4(v.xy, 0.5, 1.0); }
+
+            float4 frag(float4 pos : SV_Position) : SV_Target
             {
-                float2 T  = i.texCoord;
+                float2 T  = pos.xy / float2(_TextureWidthFluid, _TextureHeightFluid);
                 float  oC = _ObstacleTex.SampleLevel(sampler_linear_repeat, T, 0).x;
                 if (oC > _ObstacleThresholdFluid)
                     return float4(0, 0, 0, 1);

@@ -7,7 +7,7 @@ Shader "Water/Fluid_SplatVorticity"
         Pass
         {
             HLSLPROGRAM
-            #pragma vertex   vert_fullscreen
+            #pragma vertex   vert
             #pragma fragment frag
             #include "UnityCG.cginc"
             #include "../Include/WaterCommon.hlsl"
@@ -20,6 +20,8 @@ Shader "Water/Fluid_SplatVorticity"
             float _SplatDirV;
             float _SplatScale;
 
+            float4 vert(float4 v : POSITION) : SV_Position { return float4(v.xy, 0.5, 1.0); }
+
             float vorticity(float2 T)
             {
                 float2 vN = _VelocityTex.SampleLevel(sampler_linear_repeat, T + float2(0,  1.0/_TextureHeightFluid), 0).xy;
@@ -29,14 +31,14 @@ Shader "Water/Fluid_SplatVorticity"
                 return 0.5 / _FluidCellSize * ((vE.y - vW.y) - (vN.x - vS.x));
             }
 
-            float4 frag(VS_OUTPUT i) : SV_Target
+            float4 frag(float4 pos : SV_Position) : SV_Target
             {
-                float ob = _ObstacleTex.SampleLevel(sampler_linear_repeat, i.texCoord, 0).x;
+                float2 T   = pos.xy / float2(_TextureWidthFluid, _TextureHeightFluid);
+                float ob = _ObstacleTex.SampleLevel(sampler_linear_repeat, T, 0).x;
                 if (ob > _ObstacleThresholdFluid)
-                    return _VelocityTex.SampleLevel(sampler_linear_repeat, i.texCoord, 0);
+                    return _VelocityTex.SampleLevel(sampler_linear_repeat, T, 0);
 
-                float4 col = _VelocityTex.SampleLevel(sampler_linear_repeat, i.texCoord, 0);
-                float2 T   = i.texCoord;
+                float4 col = _VelocityTex.SampleLevel(sampler_linear_repeat, T, 0);
 
                 float vorC = vorticity(T);
                 float vorN = vorticity(T + float2(0,  1.0/_TextureHeightFluid));

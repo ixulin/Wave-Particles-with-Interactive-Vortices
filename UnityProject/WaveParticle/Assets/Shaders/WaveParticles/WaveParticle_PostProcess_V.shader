@@ -10,7 +10,7 @@ Shader "Water/WaveParticle_PostProcess_V"
         Pass
         {
             HLSLPROGRAM
-            #pragma vertex   vert_fullscreen
+            #pragma vertex   vert
             #pragma fragment frag
             #pragma target   3.0
             #include "UnityCG.cginc"
@@ -33,14 +33,17 @@ Shader "Water/WaveParticle_PostProcess_V"
                 float4 col2 : SV_Target1;
             };
 
-            FragOut frag(VS_OUTPUT i)
+            float4 vert(float4 v : POSITION) : SV_Position { return float4(v.xy, 0.5, 1.0); }
+
+            FragOut frag(float4 pos : SV_Position)
             {
+                float2 uv = pos.xy / float2(_TextureWidth, _TextureHeight);
                 FragOut o;
                 o.col1 = float4(0, 0, 0, 0);
                 o.col2 = float4(0, 0, 0, 0);
 
-                float3 f123 = _HorizontalFilter1.SampleLevel(sampler_linear_repeat, i.texCoord, 0).xyz;
-                float4 f45v = _HorizontalFilter2.SampleLevel(sampler_linear_repeat, i.texCoord, 0);
+                float3 f123 = _HorizontalFilter1.SampleLevel(sampler_linear_repeat, uv, 0).xyz;
+                float4 f45v = _HorizontalFilter2.SampleLevel(sampler_linear_repeat, uv, 0);
 
                 float4 deviation = float4(f45v.x, 0, f123.x, 1);
                 float4 gradient  = float4(f123.y, 0, 0, 1);
@@ -51,10 +54,10 @@ Shader "Water/WaveParticle_PostProcess_V"
                     for (int k = 1; k <= _BlurRadius; k++)
                     {
                         float  offset = k / float(_TextureHeight);
-                        float4 f123B = _HorizontalFilter1.SampleLevel(sampler_linear_repeat, i.texCoord + float2(0,  offset), 0);
-                        float4 f123T = _HorizontalFilter1.SampleLevel(sampler_linear_repeat, i.texCoord + float2(0, -offset), 0);
-                        float4 f45vB = _HorizontalFilter2.SampleLevel(sampler_linear_repeat, i.texCoord + float2(0,  offset), 0);
-                        float4 f45vT = _HorizontalFilter2.SampleLevel(sampler_linear_repeat, i.texCoord + float2(0, -offset), 0);
+                        float4 f123B = _HorizontalFilter1.SampleLevel(sampler_linear_repeat, uv + float2(0,  offset), 0);
+                        float4 f123T = _HorizontalFilter1.SampleLevel(sampler_linear_repeat, uv + float2(0, -offset), 0);
+                        float4 f45vB = _HorizontalFilter2.SampleLevel(sampler_linear_repeat, uv + float2(0,  offset), 0);
+                        float4 f45vT = _HorizontalFilter2.SampleLevel(sampler_linear_repeat, uv + float2(0, -offset), 0);
                         float3 f = GetFilter(k / float(_BlurRadius));
 
                         deviation.x += (f45vB.x + f45vT.x) * f.x * f.x;

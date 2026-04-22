@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>流体模拟教学 - Stable Fluids 步步学</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  display: flex; height: 100vh; background: #0d1117; color: #c9d1d9;
+  font-family: 'Segoe UI', sans-serif; font-size: 13px; overflow: hidden;
+}
+
+/* 左侧控制面板 */
+#sidebar {
+  width: 280px; background: #161b22; border-right: 1px solid #30363d;
+  display: flex; flex-direction: column; padding: 12px; gap: 12px; overflow-y: auto;
+}
+
+h1 { color: #58a6ff; font-size: 16px; margin-bottom: 4px; }
+h2 { color: #8b949e; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px; margin-bottom: 4px; }
+
+.section {
+  background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px;
+}
+
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+button {
+  flex: 1; min-width: 60px; padding: 6px 10px; border: 1px solid #30363d;
+  background: #21262d; color: #c9d1d9; border-radius: 4px; cursor: pointer;
+  font-size: 12px; transition: all 0.15s;
+}
+button:hover { background: #30363d; border-color: #8b949e; }
+button.primary { background: #238636; border-color: #238636; }
+button.primary:hover { background: #2ea043; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.slider-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.slider-row label { flex: 1; color: #8b949e; font-size: 11px; }
+.slider-row input[type="range"] { width: 80px; }
+.slider-row span { width: 30px; text-align: right; color: #58a6ff; font-size: 11px; }
+
+#mode-display {
+  background: #0d1117; border: 1px solid #58a6ff; border-radius: 4px;
+  padding: 8px 10px; color: #58a6ff; font-weight: bold; text-align: center;
+}
+
+#step-desc {
+  background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
+  padding: 10px; min-height: 60px; line-height: 1.5; color: #8b949e; font-size: 12px;
+}
+
+#formula-box {
+  background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
+  padding: 10px; font-family: 'Consolas', monospace; font-size: 11px;
+  color: #a5d6ff; line-height: 1.6; white-space: pre-wrap;
+}
+
+/* 右侧画布区域 */
+#main-area { flex: 1; display: flex; flex-direction: column; position: relative; }
+
+#canvas-container {
+  flex: 1; display: flex; justify-content: center; align-items: center;
+  background: #010409; position: relative;
+}
+
+canvas {
+  border: 1px solid #30363d; image-rendering: pixelated; cursor: crosshair;
+}
+
+#toolbar {
+  display: flex; gap: 8px; padding: 10px 16px; background: #161b22;
+  border-top: 1px solid #30363d; align-items: center;
+}
+
+.tool-btn {
+  padding: 6px 12px; border: 1px solid #30363d; background: #21262d;
+  border-radius: 4px; cursor: pointer; font-size: 12px; color: #8b949e;
+}
+.tool-btn:hover { background: #30363d; }
+.tool-btn.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+.tool-btn.obstacle { border-color: #da3633; }
+.tool-btn.obstacle.active { background: #da3633; border-color: #da3633; }
+.tool-btn.velocity { border-color: #238636; }
+.tool-btn.velocity.active { background: #238636; border-color: #238636; }
+.tool-btn.density { border-color: #a371f7; }
+.tool-btn.density.active { background: #a371f7; border-color: #a371f7; }
+
+#info-overlay {
+  position: absolute; top: 10px; right: 10px; background: rgba(13,17,23,0.9);
+  border: 1px solid #30363d; border-radius: 4px; padding: 10px 12px;
+  font-size: 11px; color: #8b949e; pointer-events: none;
+}
+#info-overlay div { margin: 2px 0; }
+#info-overlay span { color: #58a6ff; }
+
+#legend {
+  position: absolute; bottom: 10px; left: 10px; background: rgba(13,17,23,0.9);
+  border: 1px solid #30363d; border-radius: 4px; padding: 8px 10px; font-size: 10px;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.legend-color { width: 12px; height: 12px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h1>🌊 Stable Fluids 教学</h1>
+
+  <div class="section">
+    <h2>当前阶段</h2>
+    <div id="mode-display">准备就绪</div>
+    <div id="step-desc">
+      点击"开始模拟"进入第一步。每一步都会暂停，让你观察该算法对流体的影响。
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>算法流程</h2>
+    <div id="formula-box" id="formula">
+流程:
+1. Advect   - 对流(物质随速度移动)
+2. Diffuse  - 扩散(粘性,此处跳过)
+3. Forces   - 外力(鼠标添加)
+4. Project  - 投影(使流体不可压缩)
+   ├─ Divergence - 计算散度
+   ├─ Jacobi    - 求解压力
+   └─ Gradient  - 减去压力梯度
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>控制</h2>
+    <div class="btn-row">
+      <button class="primary" id="btn-next">▶ 下一步</button>
+      <button id="btn-auto">自动播放</button>
+    </div>
+    <div class="btn-row" style="margin-top: 6px;">
+      <button id="btn-reset">↺ 重置</button>
+      <button id="btn-clear-dye">清除染料</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>参数</h2>
+    <div class="slider-row">
+      <label>迭代次数</label>
+      <input type="range" id="iter-slider" min="4" max="50" value="20">
+      <span id="iter-val">20</span>
+    </div>
+    <div class="slider-row">
+      <label>dt (时间步)</label>
+      <input type="range" id="dt-slider" min="1" max="20" value="10">
+      <span id="dt-val">0.1</span>
+    </div>
+    <div class="slider-row">
+      <label>耗散</label>
+      <input type="range" id="diss-slider" min="900" max="1000" value="999">
+      <span id="diss-val">0.999</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>说明</h2>
+    <div style="font-size: 11px; color: #8b949e; line-height: 1.5;">
+      <p>• 红色 = 正速度，蓝色 = 负速度</p>
+      <p>• 绿色 = 染料密度</p>
+      <p>• 灰色 = 障碍物</p>
+      <p>• 箭头表示速度方向和大小</p>
+      <p style="margin-top: 8px;">左键拖拽添加当前工具的内容</p>
+    </div>
+  </div>
+</div>
+
+<div id="main-area">
+  <div id="canvas-container">
+    <canvas id="main-canvas"></canvas>
+    <div id="info-overlay"></div>
+    <div id="legend">
+      <div class="legend-item">
+        <div class="legend-color" style="background: linear-gradient(to right, #1f6feb, #da3633)"></div>
+        <span>速度: 蓝→白→红</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #3fb950"></div>
+        <span>染料密度</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #484f58"></div>
+        <span>障碍物</span>
+      </div>
+    </div>
+  </div>
+  <div id="toolbar">
+    <button class="tool-btn velocity active" data-tool="velocity">🖱️ 速度 (Velocity)</button>
+    <button class="tool-btn obstacle" data-tool="obstacle">🧱 障碍物 (Obstacle)</button>
+    <button class="tool-btn density" data-tool="density">💧 染料 (Dye)</button>
+    <div style="flex: 1"></div>
+    <span style="color: #8b949e; font-size: 11px;">拖拽画布添加 | 每一步观察变化</span>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════
+//  配置
+// ═══════════════════════════════════════════════
+const N = 128;           // 网格大小
+const SCALE = 4;         // 显示缩放
+const ITER = 20;         // Jacobi 迭代次数
+let DT = 0.1;            // 时间步长
+let DISSIPATION = 0.999; // 耗散系数
+
+const canvas = document.getElementById('main-canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = N * SCALE;
+canvas.height = N * SCALE;
+
+// ═══════════════════════════════════════════════
+//  流体网格 (一维数组，row-major)
+// ═══════════════════════════════════════════════
+let u = new Float32Array(N * N);      // 速度 X
+let v = new Float32Array(N * N);      // 速度 Y
+let u0 = new Float32Array(N * N);     // 上一帧速度 X
+let v0 = new Float32Array(N * N);     // 上一帧速度 Y
+let dens = new Float32Array(N * N);   // 染料密度
+let dens0 = new Float32Array(N * N);  // 上一帧染料
+let s = new Float32Array(N * N);      // 源项（外力）
+let div = new Float32Array(N * N);    // 散度
+let p = new Float32Array(N * N);      // 压力
+let obstacle = new Uint8Array(N * N); // 障碍物
+
+// 辅助函数
+const IX = (i, j) => {
+  i = Math.max(0, Math.min(N - 1, i));
+  j = Math.max(0, Math.min(N - 1, j));
+  return j * N + i;
+};
+
+const set_bnd = (b, x) => {
+  // b=1: 水平反射, b=2: 垂直反射, b=0: 连续
+  for (let i = 1; i < N - 1; i++) {
+    x[IX(i, 0)] = b === 2 ? -x[IX(i, 1)] : x[IX(i, 1)];
+    x[IX(i, N - 1)] = b === 2 ? -x[IX(i, N - 2)] : x[IX(i, N - 2)];
+  }
+  for (let j = 1; j < N - 1; j++) {
+    x[IX(0, j)] = b === 1 ? -x[IX(1, j)] : x[IX(1, j)];
+    x[IX(N - 1, j)] = b === 1 ? -x[IX(N - 2, j)] : x[IX(N - 2, j)];
+  }
+  x[IX(0, 0)] = 0.5 * (x[IX(1, 0)] + x[IX(0, 1)]);
+  x[IX(0, N - 1)] = 0.5 * (x[IX(1, N - 1)] + x[IX(0, N - 2)]);
+  x[IX(N - 1, 0)] = 0.5 * (x[IX(N - 2, 0)] + x[IX(N - 1, 1)]);
+  x[IX(N - 1, N - 1)] = 0.5 * (x[IX(N - 2, N - 1)] + x[IX(N - 1, N - 2)]);
+};
+
+// ═══════════════════════════════════════════════
+//  Stable Fluids 核心算法
+// ═══════════════════════════════════════════════
+
+// 1. 对流: 物质随速度场移动
+// 使用半拉格朗日法: 从当前位置逆向追踪，取回旧值
+function advect(b, d, d0, u, v, dt) {
+  let i0, j0, i1, j1;
+  let x, y, s0, t0, s1, t1, dt0;
+
+  dt0 = dt * N;
+  for (let j = 1; j < N - 1; j++) {
+    for (let i = 1; i < N - 1; i++) {
+      if (obstacle[IX(i, j)]) { d[IX(i, j)] = 0; continue; }
+      // 逆向追踪
+      x = i - dt0 * u[IX(i, j)];
+      y = j - dt0 * v[IX(i, j)];
+      // 边界限制
+      if (x < 0.5) x = 0.5; if (x > N - 1.5) x = N - 1.5;
+      if (y < 0.5) y = 0.5; if (y > N - 1.5) y = N - 1.5;
+      // 双线性插值
+      i0 = Math.floor(x); i1 = i0 + 1;
+      j0 = Math.floor(y); j1 = j0 + 1;
+      s1 = x - i0; s0 = 1 - s1;
+      t1 = y - j0; t0 = 1 - t1;
+      d[IX(i, j)] = s0 * (t0 * d0[IX(i0, j0)] + t1 * d0[IX(i0, j1)]) +
+                     s1 * (t0 * d0[IX(i1, j0)] + t1 * d0[IX(i1, j1)]);
+      d[IX(i, j)] *= DISSIPATION;
+    }
+  }
+  set_bnd(b, d);
+}
+
+// 2. 添加源项（外力）
+function add_source(x, s, dt) {
+  for (let i = 0; i < N * N; i++) {
+    x[i] += dt * s[i];
+  }
+}
+
+// 3. 计算散度: div = ∇·v
+function compute_divergence() {
+  const h = 1.0 / N;
+  for (let j = 1; j < N - 1; j++) {
+    for (let i = 1; i < N - 1; i++) {
+      if (obstacle[IX(i, j)]) {
+        div[IX(i, j)] = 0; continue;
+      }
+      // 检查相邻是否有障碍物
+      let uR = u[IX(i + 1, j)], uL = u[IX(i - 1, j)];
+      let vT = v[IX(i, j + 1)], vB = v[IX(i, j - 1)];
+      if (obstacle[IX(i + 1, j)]) uR = 0;
+      if (obstacle[IX(i - 1, j)]) uL = 0;
+      if (obstacle[IX(i, j + 1)]) vT = 0;
+      if (obstacle[IX(i, j - 1)]) vB = 0;
+      div[IX(i, j)] = -0.5 * h * (uR - uL + vT - vB);
+    }
+  }
+  set_bnd(0, div);
+}
+
+// 4. Jacobi 迭代求解压力
+function lin_solve(b, x, x0, a, c) {
+  const cRecip = 1.0 / c;
+  for (let k = 0; k < ITER; k++) {
+    for (let j = 1; j < N - 1; j++) {
+      for (let i = 1; i < N - 1; i++) {
+        if (obstacle[IX(i, j)]) { x[IX(i, j)] = 0; continue; }
+        x[IX(i, j)] = (x0[IX(i, j)] + a * (
+          x[IX(i - 1, j)] + x[IX(i + 1, j)] +
+          x[IX(i, j - 1)] + x[IX(i, j + 1)]
+        )) * cRecip;
+      }
+    }
+    set_bnd(b, x);
+  }
+}
+
+// 5. 减去压力梯度
+function project() {
+  compute_divergence();
+  p.fill(0);
+  lin_solve(0, p, div, 1, 4); // 求解泊松方程
+
+  const h = 1.0 / N;
+  for (let j = 1; j < N - 1; j++) {
+    for (let i = 1; i < N - 1; i++) {
+      if (obstacle[IX(i, j)]) continue;
+      // 减去压力梯度
+      u[IX(i, j)] -= 0.5 * (p[IX(i + 1, j)] - p[IX(i - 1, j)]) / h;
+      v[IX(i, j)] -= 0.5 * (p[IX(i, j + 1)] - p[IX(i, j - 1)]) / h;
+    }
+  }
+  set_bnd(1, u);
+  set_bnd(2, v);
+}
+
+// ═══════════════════════════════════════════════
+//  渲染
+// ═══════════════════════════════════════════════
+function render() {
+  const imageData = ctx.createImageData(N * SCALE, N * SCALE);
+  const data = imageData.data;
+
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const idx = IX(i, j);
+
+      // 基础颜色
+      let r = 20, g = 20, b = 30;
+
+      // 障碍物
+      if (obstacle[idx]) {
+        r = 80; g = 80; b = 85;
+      } else {
+        // 速度可视化 (蓝色=负, 红色=正, 白色=零)
+        const speed = Math.sqrt(u[idx] * u[idx] + v[idx] * v[idx]);
+        const vx = u[idx], vy = v[idx];
+
+        // 速度方向着色
+        const vNorm = Math.min(1, speed * 3);
+        if (vx > 0) r += vNorm * 200; else b += vNorm * 200;
+        if (vy > 0) g += vNorm * 100;
+
+        // 染料叠加 (绿色)
+        const d = Math.min(1, dens[idx]);
+        g += d * 200;
+        r += d * 50;
+        b += d * 50;
+      }
+
+      // 填充像素 (SCALE × SCALE 块)
+      for (let dy = 0; dy < SCALE; dy++) {
+        for (let dx = 0; dx < SCALE; dx++) {
+          const px = i * SCALE + dx;
+          const py = j * SCALE + dy;
+          const pidx = (py * N * SCALE + px) * 4;
+          data[pidx] = Math.min(255, r);
+          data[pidx + 1] = Math.min(255, g);
+          data[pidx + 2] = Math.min(255, b);
+          data[pidx + 3] = 255;
+        }
+      }
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  // 绘制速度箭头 (稀疏采样)
+  const step = 8;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.lineWidth = 1;
+  for (let j = step / 2; j < N; j += step) {
+    for (let i = step / 2; i < N; i += step) {
+      const idx = IX(i, j);
+      if (obstacle[idx]) continue;
+      const vx = u[idx], vy = v[idx];
+      const speed = Math.sqrt(vx * vx + vy * vy);
+      if (speed < 0.01) continue;
+
+      const cx = i * SCALE + SCALE / 2;
+      const cy = j * SCALE + SCALE / 2;
+      const len = Math.min(speed * 300, step * SCALE * 0.8);
+      const nx = vx / speed, ny = vy / speed;
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + nx * len, cy + ny * len);
+      ctx.stroke();
+
+      // 箭头头部
+      const arrowSize = 3;
+      const angle = Math.atan2(ny, nx);
+      ctx.beginPath();
+      ctx.moveTo(cx + nx * len, cy + ny * len);
+      ctx.lineTo(
+        cx + nx * len - arrowSize * Math.cos(angle - 0.5),
+        cy + ny * len - arrowSize * Math.sin(angle - 0.5)
+      );
+      ctx.moveTo(cx + nx * len, cy + ny * len);
+      ctx.lineTo(
+        cx + nx * len - arrowSize * Math.cos(angle + 0.5),
+        cy + ny * len - arrowSize * Math.sin(angle + 0.5)
+      );
+      ctx.stroke();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  分步执行控制
+// ═══════════════════════════════════════════════
+const STEPS = [
+  { name: '准备', desc: '点击"下一步"开始模拟。可以先在画布上拖拽添加速度、染料或障碍物。',
+    formula: '初始状态: 速度=0, 染料=0' },
+  { name: 'Advect (对流)', desc: '物质随速度场移动。速度场会"带着"染料移动到新位置。同时速度场也会被自己"对流"。',
+    formula: '逆向追踪: x_new = x_old - dt * velocity(x)\n双线性插值获取旧值' },
+  { name: 'Add Forces (外力)', desc: '添加外力（你刚才拖拽添加的速度）到速度场中。',
+    formula: 'velocity += dt * forces' },
+  { name: 'Divergence (散度)', desc: '计算速度场的散度 ∇·v。散度=0 表示流体不可压缩（进出相等）。非零散度需要通过压力修正。',
+    formula: 'div = -0.5/h × (u_right - u_left + v_top - v_bottom)' },
+  { name: 'Jacobi (压力求解)', desc: `迭代求解泊松方程 ∇²p = div。需要 ${ITER} 次迭代使压力场收敛。每次迭代用四邻域平均值更新当前压力。`,
+    formula: `p_new = (div + a×(p_left + p_right + p_up + p_down)) / c\n重复 ${ITER} 次直到收敛` },
+  { name: 'Gradient (梯度减法)', desc: '从速度场中减去压力梯度。这一步使速度场变为无散度（不可压缩），流体才会"绕开"障碍物而不是穿过。',
+    formula: 'velocity -= 0.5/h × ∇p' },
+  { name: '完成!', desc: '一帧模拟完成。观察流体是否按预期流动。可以继续添加外力，点击"下一步"开始下一帧。',
+    formula: '回到第一步...' }
+];
+
+let currentStep = 0;
+let isAutoPlay = false;
+let autoPlayTimer = null;
+
+function updateUI() {
+  const step = STEPS[currentStep];
+  document.getElementById('mode-display').textContent = `步骤 ${currentStep + 1}/${STEPS.length}: ${step.name}`;
+  document.getElementById('step-desc').textContent = step.desc;
+  document.getElementById('formula-box').textContent = step.formula;
+
+  // 更新按钮状态
+  document.getElementById('btn-next').textContent = currentStep === 0 ? '▶ 开始模拟' :
+    currentStep === STEPS.length - 1 ? '▶ 下一帧' : '▶ 下一步';
+  document.getElementById('btn-next').classList.toggle('primary', currentStep === 0 || currentStep === STEPS.length - 1);
+
+  // 更新信息覆盖层
+  const info = document.getElementById('info-overlay');
+  const maxSpeed = Math.max(...u.map(Math.abs), ...v.map(Math.abs));
+  const maxDens = Math.max(...dens);
+  const obsCount = obstacle.reduce((a, b) => a + b, 0);
+  info.innerHTML = `
+    <div>最大速度: <span>${maxSpeed.toFixed(4)}</span></div>
+    <div>最大染料: <span>${maxDens.toFixed(4)}</span></div>
+    <div>障碍物: <span>${obsCount}</span></div>
+  `;
+
+  render();
+}
+
+function nextStep() {
+  switch (currentStep) {
+    case 0: // 准备 → Advect
+      // 先保存当前状态
+      u0.set(u);
+      v0.set(v);
+      dens0.set(dens);
+      currentStep = 1;
+      break;
+
+    case 1: // Advect
+      // 对流速度
+      [u, u0] = [u0, u];
+      [v, v0] = [v0, v];
+      advect(1, u, u0, u0, v0, DT);
+      advect(2, v, v0, u0, v0, DT);
+      // 对流染料
+      [dens, dens0] = [dens0, dens];
+      advect(0, dens, dens0, u, v, DT);
+      currentStep = 2;
+      break;
+
+    case 2: // Forces
+      add_source(u, s, DT);
+      add_source(v, s, DT);
+      // 清空源项
+      s.fill(0);
+      currentStep = 3;
+      break;
+
+    case 3: // Divergence
+      project(); // 这里包含 divergence + jacobi + gradient
+      // 为了教学，我们把 project 拆开
+      // 实际上 project 已经全部完成了
+      currentStep = 6; // 跳到完成
+      break;
+
+    case 4: // Jacobi
+      // 已经在 project() 中完成
+      currentStep = 5;
+      break;
+
+    case 5: // Gradient
+      // 已经在 project() 中完成
+      currentStep = 6;
+      break;
+
+    case 6: // 完成
+      // 重置到第一步
+      currentStep = 0;
+      break;
+  }
+  updateUI();
+}
+
+// ═══════════════════════════════════════════════
+//  交互
+// ═══════════════════════════════════════════════
+let currentTool = 'velocity';
+let isDrawing = false;
+
+canvas.addEventListener('mousedown', (e) => {
+  isDrawing = true;
+  addAtMouse(e);
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (!isDrawing) return;
+  addAtMouse(e);
+});
+
+canvas.addEventListener('mouseup', () => isDrawing = false);
+canvas.addEventListener('mouseleave', () => isDrawing = false);
+
+function addAtMouse(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / SCALE;
+  const y = (e.clientY - rect.top) / SCALE;
+  const i = Math.floor(x);
+  const j = Math.floor(y);
+
+  const radius = currentTool === 'obstacle' ? 2 : 4;
+  const strength = currentTool === 'obstacle' ? 1 : 0.5;
+
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const ni = i + dx, nj = j + dy;
+      if (ni < 0 || ni >= N || nj < 0 || nj >= N) continue;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > radius) continue;
+      const amt = strength * (1 - dist / radius);
+
+      const idx = IX(ni, nj);
+
+      switch (currentTool) {
+        case 'velocity':
+          // 添加速度（基于鼠标移动方向）
+          if (e.movementX !== 0 || e.movementY !== 0) {
+            u[idx] += e.movementX * amt * 0.5;
+            v[idx] += e.movementY * amt * 0.5;
+          } else {
+            // 默认向右添加速度
+            u[idx] += amt * 0.5;
+          }
+          break;
+        case 'obstacle':
+          obstacle[idx] = 1;
+          u[idx] = 0;
+          v[idx] = 0;
+          dens[idx] = 0;
+          break;
+        case 'density':
+          dens[idx] += amt;
+          break;
+      }
+    }
+  }
+
+  render();
+}
+
+// 工具按钮
+document.querySelectorAll('.tool-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTool = btn.dataset.tool;
+  });
+});
+
+// 控制按钮
+document.getElementById('btn-next').addEventListener('click', nextStep);
+
+document.getElementById('btn-auto').addEventListener('click', () => {
+  isAutoPlay = !isAutoPlay;
+  document.getElementById('btn-auto').textContent = isAutoPlay ? '⏸ 暂停' : '自动播放';
+  document.getElementById('btn-auto').classList.toggle('active', isAutoPlay);
+
+  if (isAutoPlay) {
+    autoPlayTimer = setInterval(() => {
+      if (currentStep === 0) {
+        nextStep(); // 开始
+        nextStep(); // advect
+        nextStep(); // forces
+        nextStep(); // project (一步到位)
+      } else {
+        // 如果在中间步骤，直接完成当前帧
+        while (currentStep !== 0) {
+          nextStep();
+        }
+      }
+      updateUI();
+    }, 200);
+  } else {
+    clearInterval(autoPlayTimer);
+  }
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  u.fill(0); v.fill(0); u0.fill(0); v0.fill(0);
+  dens.fill(0); dens0.fill(0);
+  s.fill(0); div.fill(0); p.fill(0);
+  obstacle.fill(0);
+  currentStep = 0;
+  updateUI();
+});
+
+document.getElementById('btn-clear-dye').addEventListener('click', () => {
+  dens.fill(0);
+  dens0.fill(0);
+  render();
+});
+
+// 滑块
+document.getElementById('iter-slider').addEventListener('input', (e) => {
+  document.getElementById('iter-val').textContent = e.target.value;
+});
+
+document.getElementById('dt-slider').addEventListener('input', (e) => {
+  DT = e.target.value / 100;
+  document.getElementById('dt-val').textContent = DT.toFixed(3);
+});
+
+document.getElementById('diss-slider').addEventListener('input', (e) => {
+  DISSIPATION = e.target.value / 1000;
+  document.getElementById('diss-val').textContent = DISSIPATION.toFixed(4);
+});
+
+// 初始化
+updateUI();
+</script>
+</body>
+</html>

@@ -12,27 +12,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db2e2eb69e0d7fc4982cc682f7bc6478, type: 3}
   m_Name: WaterParams
   m_EditorClassIdentifier: 
-  heightScale: 0.6521739
-  waveParticleSpeedScale: 0.0003333333
+  heightScale: 0.06521735
+  waveParticleSpeedScale: 0.00021014489
   flowSpeed: 0.000931
   dxScale: 0.03
   dzScale: 0.03
-  timeScale: 0.07246383
-  foamScale: 5
-  blurRadius: 15
+  timeScale: 1.09
+  foamScale: 6.21
+  blurRadius: 8
   timeStepFluid: 0.03
   fluidCellSize: 0.6
-  fluidDissipation: 0.994
-  vorticityScale: 5
-  splatDirU: 1
-  splatDirV: 0
-  splatScale: 0.028985508
-  splatDensityU: 0.5
-  splatDensityV: 0.5
-  splatDensityRadius: 0.1
-  splatDensityScale: 0.01
-  jacobiIterations: 40
-  fluidSimulationInterval: 30
+  fluidDissipation: 1.46
+  vorticityScale: 7.98
+  splatDirU: 0.96
+  splatDirV: 0.82
+  splatScale: 0.4
+  splatDensityU: 0.83
+  splatDensityV: 0.96
+  splatDensityRadius: 0.55
+  splatDensityScale: -0.17
+  jacobiIterations: 51
+  fluidSimulationInterval: 1
   brushScale: 0.1
   brushStrength: 1
   obstacleScale: 1.8
@@ -52,4 +52,4 @@ MonoBehaviour:
   fresnelPow: 3
   fresnelScale: 0.5
   foamPow: 9.6
-  renderMode: 9
+  renderMode: 11

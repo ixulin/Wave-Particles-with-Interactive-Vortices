@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Wave Particles + Fluid Simulation 流程演示</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { display: flex; height: 100vh; background: #12131a; color: #cdd6f4; font-family: 'Consolas', monospace; font-size: 12px; overflow: hidden; }
+
+/* ── 左侧管线图 ── */
+#pipeline {
+  width: 190px; min-width: 190px; background: #1e1e2e; border-right: 1px solid #313244;
+  overflow-y: auto; padding: 8px 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.pass-group { margin-top: 8px; }
+.group-label { color: #6c7086; font-size: 10px; padding: 2px 4px; text-transform: uppercase; letter-spacing: 1px; }
+.pass-node {
+  display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 4px;
+  cursor: pointer; border: 1px solid transparent; transition: all .15s;
+  white-space: nowrap; overflow: hidden;
+}
+.pass-node:hover { background: #313244; }
+.pass-node.active { background: #313244; border-color: #89b4fa; color: #89b4fa; }
+.pass-node .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.arrow-down { text-align: center; color: #45475a; font-size: 10px; margin: 1px 0; }
+
+/* ── 右侧详情 ── */
+#detail { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+#pass-header {
+  background: #181825; padding: 10px 16px 8px; border-bottom: 1px solid #313244;
+  display: flex; align-items: baseline; gap: 10px; flex-shrink: 0;
+}
+#pass-title { font-size: 15px; font-weight: bold; color: #cba6f7; }
+#pass-desc { color: #a6adc8; font-size: 11px; max-width: 600px; line-height: 1.4; }
+
+#pass-formula {
+  background: #11111b; padding: 6px 16px; border-bottom: 1px solid #313244;
+  color: #a6e3a1; font-size: 11px; flex-shrink: 0; min-height: 24px;
+  display: flex; align-items: center; gap: 6px;
+}
+#pass-formula .label { color: #6c7086; }
+
+#textures-row {
+  display: flex; gap: 12px; padding: 10px 16px; background: #181825;
+  border-bottom: 1px solid #313244; flex-shrink: 0; flex-wrap: wrap;
+}
+.tex-box { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.tex-label { color: #6c7086; font-size: 10px; }
+.tex-name  { color: #89dceb; font-size: 10px; font-weight: bold; }
+.tex-canvas { border: 1px solid #313244; image-rendering: pixelated; }
+.tex-arrow { font-size: 18px; color: #45475a; align-self: center; margin-top: 20px; }
+
+#output-row {
+  display: flex; gap: 12px; padding: 10px 16px; background: #1e1e2e;
+  border-bottom: 1px solid #313244; flex-shrink: 0; flex-wrap: wrap;
+}
+
+#controls {
+  padding: 8px 16px; background: #181825; display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0; flex-wrap: wrap;
+}
+button {
+  padding: 4px 12px; border: 1px solid #45475a; background: #313244; color: #cdd6f4;
+  border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 11px;
+}
+button:hover { background: #45475a; }
+button.active { border-color: #89b4fa; color: #89b4fa; }
+#status { color: #a6adc8; font-size: 11px; }
+#jacobi-ctrl { display: flex; align-items: center; gap: 6px; }
+#jacobi-bar { width: 100px; height: 6px; background: #313244; border-radius: 3px; overflow: hidden; }
+#jacobi-fill { height: 100%; background: #cba6f7; width: 0%; transition: width .1s; }
+
+#log {
+  flex: 1; overflow-y: auto; padding: 8px 16px; background: #11111b;
+  font-size: 10px; color: #6c7086; line-height: 1.6;
+}
+
+/* interactive overlay on canvas */
+#final-canvas { border: 1px solid #89b4fa; image-rendering: pixelated; cursor: crosshair; }
+</style>
+</head>
+<body>
+
+<!-- ════════════ 左侧管线图 ════════════ -->
+<div id="pipeline">
+  <div style="color:#89b4fa;font-size:11px;padding:4px 4px 8px;border-bottom:1px solid #313244;margin-bottom:4px;">
+    Pipeline Stages
+  </div>
+
+  <div class="group-label">🌀 Obstacle</div>
+  <div class="pass-node" data-pass="createObstacle">
+    <div class="dot" style="background:#f38ba8"></div>CreateObstacle
+  </div>
+  <div class="arrow-down">↓</div>
+  <div class="pass-node" data-pass="blurObstacleH">
+    <div class="dot" style="background:#f38ba8"></div>BlurObstacle H
+  </div>
+  <div class="arrow-down">↓</div>
+  <div class="pass-node" data-pass="blurObstacleV">
+    <div class="dot" style="background:#f38ba8"></div>BlurObstacle V
+  </div>
+
+  <div class="group-label" style="margin-top:6px">💧 Fluid</div>
+  <div class="pass-node" data-pass="advectVelocity">
+    <div class="dot" style="background:#89b4fa"></div>AdvectVelocity
+  </div>
+  <div class="arrow-down">↓</div>
+  <div class="pass-node" data-pass="advectDensity">
+    <div class="dot" style="background:#89b4fa"></div>AdvectDensity
+  </div>
+  <div class="arrow-down">↓</div>
+  <div class="pass-node" data-pass="splatVelocity">
+    <div class="dot" style="background:#89b4fa"></div>SplatVelocity
+  </div>
+  <div class="arrow-down">↓</div>
+  <div class="pass-node" data-pass="computeDivergence">
+    <div class="dot" style="background:#89b4fa"></div>ComputeDivergence
+  </div>
+  <div class="arrow-down">↓</div>
+  <div class="pass-node" data-pass="jacobi">
+    <div class="dot" style="background:#cba6f7"></div>Jacobi ×40
+  </div>
+  <div class="arrow-down">↓</div>
+  <div class="pass-node" data-pass="subtractGradient">
+    <div class="dot" style="background:#89b4fa"></div>SubtractGradient
+  </div>
+
+  <div class="group-label" style="margin-top:6px">🌊 Wave</div>
+  <div class="pass-node" data-pass="waveParticle">
+    <div class="dot" style="background:#a6e3a1"></div>WaveParticle
+  </div>
+  <div class="arrow-down">↓</div>
+  <div class="pass-node" data-pass="postProcessH">
+    <div class="dot" style="background:#a6e3a1"></div>PostProcess H
+  </div>
+  <div class="arrow-down">↓</div>
+  <div class="pass-node" data-pass="postProcessV">
+    <div class="dot" style="background:#a6e3a1"></div>PostProcess V
+  </div>
+
+  <div class="group-label" style="margin-top:6px">🎨 Final</div>
+  <div class="pass-node" data-pass="waterSurface">
+    <div class="dot" style="background:#fab387"></div>WaterSurface
+  </div>
+
+  <div style="margin-top:12px; padding:6px; border-top:1px solid #313244; color:#6c7086; font-size:10px; line-height:1.6">
+    点击 Pass 节点查看详情<br>
+    左键点击右侧网格注入速度<br>
+    右键拖拽绘制障碍物
+  </div>
+</div>
+
+<!-- ════════════ 右侧详情 ════════════ -->
+<div id="detail">
+  <div id="pass-header">
+    <div id="pass-title">—</div>
+    <div id="pass-desc">点击左侧管线节点查看该 Pass 的输入/输出</div>
+  </div>
+  <div id="pass-formula"><span class="label">HLSL:</span><span id="formula-text">—</span></div>
+  <div id="textures-row"></div>
+  <div id="output-row"></div>
+  <div id="controls">
+    <button id="btn-run">▶ 运行</button>
+    <button id="btn-step">单帧步进</button>
+    <button id="btn-reset">重置</button>
+    <div id="jacobi-ctrl">
+      <span style="color:#6c7086">Jacobi:</span>
+      <div id="jacobi-bar"><div id="jacobi-fill"></div></div>
+      <span id="jacobi-label" style="color:#cba6f7">0/40</span>
+    </div>
+    <div id="status">Frame: 0</div>
+  </div>
+  <div id="log"></div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════
+//  Constants (match main.cpp defaults)
+// ═══════════════════════════════════════════════
+const N  = 32;   // fluid grid size
+const NW = 64;   // wave particle RT size (larger for smoother waves)
+const JACOBI_ITERS = 40;
+
+// Scene uniforms (from CreateScene() in main.cpp)
+const U = {
+  timeStepFluid:       0.03,
+  fluidCellSize:       0.6,
+  fluidDissipation:    0.994,
+  vorticityScale:      0.64,
+  splatDirU:           1.0,
+  splatDirV:           0.0,
+  splatScale:          0.00593,
+  obstacleThresholdFluid: 0.3,
+  blurRadius:          8,       // reduced for JS
+  waveParticleSpeedScale: 0.00005,
+  timeScale:           1.3,
+  heightScale:         0.14,
+  textureWidthFluid:   Math.round(N / 3.5),
+  textureHeightFluid:  Math.round(N / 3.5),
+};
+
+// ═══════════════════════════════════════════════
+//  Grid (CPU "texture")
+// ═══════════════════════════════════════════════
+class Grid {
+  constructor(w, h, ch = 1) {
+    this.w = w; this.h = h; this.ch = ch;
+    this.data = new Float32Array(w * h * ch);
+  }
+  idx(i, j, c = 0) {
+    // wrap addressing (matches wrapSampler)
+    i = ((i % this.w) + this.w) % this.w;
+    j = ((j % this.h) + this.h) % this.h;
+    return (j * this.w + i) * this.ch + c;
+  }
+  get(i, j, c = 0) { return this.data[this.idx(i, j, c)]; }
+  set(i, j, c, v)   { this.data[this.idx(i, j, c)] = v; }
+  add(i, j, c, v)   { this.data[this.idx(i, j, c)] += v; }
+  clear()            { this.data.fill(0); }
+  clone()            { const g = new Grid(this.w, this.h, this.ch); g.data.set(this.data); return g; }
+  // Bilinear sample at UV [0,1] with wrap
+  sample(u, v, c = 0) {
+    let x = u * this.w - 0.5, y = v * this.h - 0.5;
+    const i0 = Math.floor(x), j0 = Math.floor(y);
+    const fx = x - i0, fy = y - j0;
+    const v00 = this.get(i0,   j0,   c);
+    const v10 = this.get(i0+1, j0,   c);
+    const v01 = this.get(i0,   j0+1, c);
+    const v11 = this.get(i0+1, j0+1, c);
+    return v00*(1-fx)*(1-fy) + v10*fx*(1-fy) + v01*(1-fx)*fy + v11*fx*fy;
+  }
+  sample2(u, v) { return [this.sample(u,v,0), this.sample(u,v,1)]; }
+}
+
+// ═══════════════════════════════════════════════
+//  Simulation State
+// ═══════════════════════════════════════════════
+// Fluid
+let velPing, velPong, denPing, denPong, prePing, prePong, divGrid, obstacle, obstacleCreate, obstacleBlur;
+// Wave particle
+let wpRT;     // w=NW, h=NW, ch=3: (vx, vy, amplitude)
+let postH1, postH2, postV1, postV2; // w=NW, h=NW, ch=1 each
+// Wave particles array
+let particles = [];
+
+let frameCount = 0;
+let running = false;
+let raf = null;
+let jacobiStep = 0; // current Jacobi iteration during step-through
+
+function initState() {
+  velPing  = new Grid(N, N, 2);
+  velPong  = new Grid(N, N, 2);
+  denPing  = new Grid(N, N, 1);
+  denPong  = new Grid(N, N, 1);
+  prePing  = new Grid(N, N, 1);
+  prePong  = new Grid(N, N, 1);
+  divGrid  = new Grid(N, N, 1);
+  obstacle        = new Grid(N, N, 1);
+  obstacleCreate  = new Grid(N, N, 1);
+  obstacleBlur    = new Grid(N, N, 1);
+  wpRT   = new Grid(NW, NW, 3);
+  postH1 = new Grid(NW, NW, 1);
+  postH2 = new Grid(NW, NW, 1);
+  postV1 = new Grid(NW, NW, 1);
+  postV2 = new Grid(NW, NW, 1);
+  frameCount = 0;
+  jacobiStep = 0;
+
+  // Spawn wave particles at random positions with random directions
+  particles = [];
+  for (let k = 0; k < 12; k++) {
+    const angle = Math.random() * Math.PI * 2;
+    particles.push({
+      x: (Math.random() * 2 - 1),
+      y: (Math.random() * 2 - 1),
+      dx: Math.cos(angle), dy: Math.sin(angle),
+      amplitude: 0.5 + Math.random() * 0.5,
+      speed: 0.8 + Math.random() * 0.4,
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  Pipeline Passes (direct HLSL translation)
+// ═══════════════════════════════════════════════
+
+// AdvectPS.hlsl: col = dissipation * srcTex.Sample(wrapSampler, texCoord - dt*velocity)
+function advect(src, vel, dst, isObstacleZero = true) {
+  const dt = U.timeStepFluid;
+  const diss = U.fluidDissipation;
+  const tmp = dst;
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const u = (i + 0.5) / N, v = (j + 0.5) / N;
+      const solid = obstacle.get(i, j);
+      if (solid > U.obstacleThresholdFluid) {
+        for (let c = 0; c < src.ch; c++) tmp.set(i, j, c, 0);
+      } else {
+        const vx = vel.get(i, j, 0), vy = vel.get(i, j, 1);
+        const cu = u - dt * vx, cv = v - dt * vy;
+        for (let c = 0; c < src.ch; c++)
+          tmp.set(i, j, c, diss * src.sample(cu, cv, c));
+      }
+    }
+  }
+}
+
+// SplatVelocityWithVorticityPS.hlsl
+function splatVelocity(src, dst) {
+  const fw = U.textureWidthFluid, fh = U.textureHeightFluid;
+  const cs = U.fluidCellSize;
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const solid = obstacle.get(i, j);
+      if (solid > U.obstacleThresholdFluid) {
+        dst.set(i, j, 0, 0); dst.set(i, j, 1, 0); continue;
+      }
+      // copy current velocity
+      let vx = src.get(i, j, 0), vy = src.get(i, j, 1);
+      // vorticity at (i,j) and neighbors
+      function vort(ii, jj) {
+        const u = ii / N, v = jj / N;
+        const vNx = src.get(ii, jj+1, 0), vNy = src.get(ii, jj+1, 1);
+        const vSx = src.get(ii, jj-1, 0), vSy = src.get(ii, jj-1, 1);
+        const vEx = src.get(ii+1, jj, 0), vEy = src.get(ii+1, jj, 1);
+        const vWx = src.get(ii-1, jj, 0), vWy = src.get(ii-1, jj, 1);
+        return 0.5 / cs * ((vEy - vWy) - (vNx - vSx));
+      }
+      const vorC = vort(i, j);
+      const vorN = vort(i, j+1), vorS = vort(i, j-1);
+      const vorE = vort(i+1, j), vorW = vort(i-1, j);
+      // normalized gradient of |vorticity|
+      let fx = 0.5 / cs * (Math.abs(vorN) - Math.abs(vorS));
+      let fy = 0.5 / cs * (Math.abs(vorE) - Math.abs(vorW));
+      const len2 = fx*fx + fy*fy;
+      const eps = 0.00024414;
+      const inv = 1 / Math.sqrt(Math.max(len2, eps));
+      fx *= inv; fy *= inv;
+      // vorticity confinement force
+      fx = fx * cs * vorC;
+      fy = -fy * cs * vorC;
+      // add splat + vorticity
+      dst.set(i, j, 0, vx + U.splatDirU * U.splatScale + fx * U.timeStepFluid * U.vorticityScale);
+      dst.set(i, j, 1, vy + U.splatDirV * U.splatScale + fy * U.timeStepFluid * U.vorticityScale);
+    }
+  }
+}
+
+// ComputeDivergencePS.hlsl
+function computeDivergence(vel, dst) {
+  const half = 0.5 / U.fluidCellSize;
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      let vEx = vel.get(i+1, j, 0), vWx = vel.get(i-1, j, 0);
+      let vNy = vel.get(i, j+1, 1), vSy = vel.get(i, j-1, 1);
+      const oN = obstacle.get(i, j+1), oS = obstacle.get(i, j-1);
+      const oE = obstacle.get(i+1, j), oW = obstacle.get(i-1, j);
+      if (oN > U.obstacleThresholdFluid) vNy = 0;
+      if (oS > U.obstacleThresholdFluid) vSy = 0;
+      if (oE > U.obstacleThresholdFluid) vEx = 0;
+      if (oW > U.obstacleThresholdFluid) vWx = 0;
+      dst.set(i, j, 0, half * (vEx - vWx + vNy - vSy));
+    }
+  }
+}
+
+// JacobiPS.hlsl: one iteration
+// col = 1.01 * (pW+pE+pS+pN + alpha*bC) * 0.25
+function jacobiIteration(src, div, dst) {
+  const alpha = -(U.fluidCellSize * U.fluidCellSize);
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const pC = src.get(i, j);
+      const oN = obstacle.get(i, j+1), oS = obstacle.get(i, j-1);
+      const oE = obstacle.get(i+1, j), oW = obstacle.get(i-1, j);
+      let pN = src.get(i, j+1), pS = src.get(i, j-1);
+      let pE = src.get(i+1, j), pW = src.get(i-1, j);
+      if (oN > U.obstacleThresholdFluid) pN = pC;
+      if (oS > U.obstacleThresholdFluid) pS = pC;
+      if (oE > U.obstacleThresholdFluid) pE = pC;
+      if (oW > U.obstacleThresholdFluid) pW = pC;
+      const bC = div.get(i, j);
+      dst.set(i, j, 0, 1.01 * (pW + pE + pS + pN + alpha * bC) * 0.25);
+    }
+  }
+}
+
+// SubtractGradientPS.hlsl
+function subtractGradient(vel, pre, dst) {
+  const half = 0.5 / U.fluidCellSize;
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const oC = obstacle.get(i, j);
+      if (oC > U.obstacleThresholdFluid) {
+        dst.set(i, j, 0, 0); dst.set(i, j, 1, 0); continue;
+      }
+      const pC = pre.get(i, j);
+      const oN = obstacle.get(i, j+1), oS = obstacle.get(i, j-1);
+      const oE = obstacle.get(i+1, j), oW = obstacle.get(i-1, j);
+      let pN = pre.get(i, j+1), pS = pre.get(i, j-1);
+      let pE = pre.get(i+1, j), pW = pre.get(i-1, j);
+      let maskX = 1, maskY = 1;
+      if (oN > U.obstacleThresholdFluid) { pN = pC; maskY = 0; }
+      if (oS > U.obstacleThresholdFluid) { pS = pC; maskY = 0; }
+      if (oE > U.obstacleThresholdFluid) { pE = pC; maskX = 0; }
+      if (oW > U.obstacleThresholdFluid) { pW = pC; maskX = 0; }
+      const gradX = (pE - pW) * half;
+      const gradY = (pN - pS) * half;
+      dst.set(i, j, 0, maskX * (vel.get(i, j, 0) - gradX));
+      dst.set(i, j, 1, maskY * (vel.get(i, j, 1) - gradY));
+    }
+  }
+}
+
+// Obstacle blur (simple box blur for simplicity)
+function blurH(src, dst, radius) {
+  for (let j = 0; j < src.h; j++) {
+    for (let i = 0; i < src.w; i++) {
+      let sum = 0; let cnt = 0;
+      for (let k = -radius; k <= radius; k++) {
+        sum += src.get(i + k, j);
+        cnt++;
+      }
+      dst.set(i, j, 0, sum / cnt);
+    }
+  }
+}
+function blurV(src, dst, radius) {
+  for (let j = 0; j < src.h; j++) {
+    for (let i = 0; i < src.w; i++) {
+      let sum = 0; let cnt = 0;
+      for (let k = -radius; k <= radius; k++) {
+        sum += src.get(i, j + k);
+        cnt++;
+      }
+      dst.set(i, j, 0, sum / cnt);
+    }
+  }
+}
+
+// WaveParticle: update particles and render to wpRT
+// WaveParticleVS.hlsl: pos = pos + speed * timeScale * time * direction (with bounce)
+function updateWaveParticles() {
+  wpRT.clear();
+  for (const p of particles) {
+    // move
+    const spd = U.waveParticleSpeedScale * p.speed;
+    let x = p.x + spd * U.timeScale * p.dx;
+    let y = p.y + spd * U.timeScale * p.dy;
+    // bounce (from WaveParticleVS wrap logic)
+    function wrap1d(v, dv) {
+      if (v > 1) { v = 2 - v; dv = -dv; }
+      if (v < -1) { v = -2 - v; dv = -dv; }
+      return [v, dv];
+    }
+    let [nx, ndx] = wrap1d(x, p.dx);
+    let [ny, ndy] = wrap1d(y, p.dy);
+    p.x = nx; p.y = ny; p.dx = ndx; p.dy = ndy;
+
+    // splat onto wpRT: additive Gaussian
+    // WaveParticlePS outputs (velocity.x, velocity.y, amplitude)
+    const pi = (p.x * 0.5 + 0.5) * NW;
+    const pj = (p.y * 0.5 + 0.5) * NW;
+    const radius = 2.5; // pixel radius in wpRT
+    for (let dj = -4; dj <= 4; dj++) {
+      for (let di = -4; di <= 4; di++) {
+        const d2 = di*di + dj*dj;
+        const r2 = radius * radius;
+        if (d2 > r2 * 4) continue;
+        const w = Math.exp(-d2 / (2 * r2));
+        const ii = Math.round(pi + di), jj = Math.round(pj + dj);
+        const amp = p.amplitude * U.heightScale * w;
+        wpRT.add(ii, jj, 0, p.dx * spd * w);
+        wpRT.add(ii, jj, 1, p.dy * spd * w);
+        wpRT.add(ii, jj, 2, amp);
+      }
+    }
+  }
+}
+
+// PostProcessH: separable filter using GetFilter kernel
+// GetFilter(v) = (0.5*(cos(πv)+1), -0.5*sin(πv), -0.25*(cos(2πv)+cos(πv)))
+// Outputs f123→col1, f45v→col2
+function getFilter(v) {
+  const c = Math.cos(Math.PI * v), s = Math.sin(Math.PI * v);
+  return [0.5 * (c + 1), -0.5 * s, -0.25 * (Math.cos(2*Math.PI*v) + c)];
+}
+function postProcessH(src, dst1, dst2, blurR) {
+  for (let j = 0; j < NW; j++) {
+    for (let i = 0; i < NW; i++) {
+      const amp = src.get(i, j, 2);
+      // f123: height derivative channels
+      let f1 = amp, f2 = 0, f3 = 0.5 * amp;
+      let f4 = 0, f5 = 0, fvx = 0, fvy = 0;
+      for (let k = 1; k <= blurR; k++) {
+        const [fk1, fk2, fk3] = getFilter(k / blurR);
+        const aL = src.get(i + k, j, 2), aR = src.get(i - k, j, 2);
+        const sum = aL + aR, dif = aL - aR;
+        f1  += sum * fk1;
+        f2  += dif * fk2;
+        f3  += sum * fk3;
+        f4  += dif * fk1 * fk2 * 2;
+        f5  += sum * fk1 * fk1;
+        fvx += (Math.sign(aL)*src.get(i+k,j,0) + Math.sign(aR)*src.get(i-k,j,0)) * fk1;
+        fvy += (Math.sign(aL)*src.get(i+k,j,1) + Math.sign(aR)*src.get(i-k,j,1)) * fk1;
+      }
+      dst1.set(i, j, 0, f1);
+      dst2.set(i, j, 0, f3);
+    }
+  }
+}
+
+function postProcessV(src1, src2, dst1, dst2, blurR) {
+  for (let j = 0; j < NW; j++) {
+    for (let i = 0; i < NW; i++) {
+      let v1 = src1.get(i, j), v2 = src2.get(i, j);
+      let out1 = v1, out2 = v2;
+      for (let k = 1; k <= blurR; k++) {
+        const [fk1] = getFilter(k / blurR);
+        out1 += (src1.get(i, j+k) + src1.get(i, j-k)) * fk1;
+        out2 += (src2.get(i, j+k) + src2.get(i, j-k)) * fk1;
+      }
+      dst1.set(i, j, 0, out1);
+      dst2.set(i, j, 0, out2);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  Full frame step
+// ═══════════════════════════════════════════════
+function step() {
+  frameCount++;
+
+  // --- Fluid pipeline ---
+  advect(velPing, velPing, velPong);
+  [velPing, velPong] = [velPong, velPing];
+
+  advect(denPing, velPing, denPong);
+  [denPing, denPong] = [denPong, denPing];
+
+  splatVelocity(velPing, velPong);
+  [velPing, velPong] = [velPong, velPing];
+
+  computeDivergence(velPing, divGrid);
+
+  prePing.clear();
+  for (let it = 0; it < JACOBI_ITERS; it++) {
+    jacobiIteration(prePing, divGrid, prePong);
+    [prePing, prePong] = [prePong, prePing];
+  }
+  jacobiStep = JACOBI_ITERS;
+
+  subtractGradient(velPing, prePing, velPong);
+  [velPing, velPong] = [velPong, velPing];
+
+  // --- Wave particles ---
+  updateWaveParticles();
+  const blurR = Math.min(U.blurRadius, 15);
+  postProcessH(wpRT, postH1, postH2, blurR);
+  postProcessV(postH1, postH2, postV1, postV2, blurR);
+
+  updateUI();
+}
+
+// ═══════════════════════════════════════════════
+//  Visualization helpers
+// ═══════════════════════════════════════════════
+const CELL_PX = 8;  // pixels per cell for fluid grid
+const WAVE_PX = 4;  // pixels per cell for wave RT
+
+function heatmap(v, lo, hi) {
+  // blue→cyan→green→yellow→red
+  const t = Math.max(0, Math.min(1, (v - lo) / (hi - lo || 1)));
+  let r, g, b;
+  if (t < 0.5) {
+    r = 0; g = t * 2; b = 1 - t * 2;
+  } else {
+    r = (t - 0.5) * 2; g = 1 - (t - 0.5) * 2; b = 0;
+  }
+  return [r * 255 | 0, g * 255 | 0, b * 255 | 0];
+}
+
+function drawScalar(canvas, grid, lo, hi) {
+  const ctx = canvas.getContext('2d');
+  const idata = ctx.createImageData(grid.w, grid.h);
+  for (let j = 0; j < grid.h; j++) {
+    for (let i = 0; i < grid.w; i++) {
+      const [r, g, b] = heatmap(grid.get(i, j), lo, hi);
+      const k = (j * grid.w + i) * 4;
+      idata.data[k] = r; idata.data[k+1] = g; idata.data[k+2] = b; idata.data[k+3] = 255;
+    }
+  }
+  ctx.putImageData(idata, 0, 0);
+}
+
+function drawVelocity(canvas, grid) {
+  const ctx = canvas.getContext('2d');
+  // background heatmap of speed
+  const idata = ctx.createImageData(grid.w, grid.h);
+  for (let j = 0; j < grid.h; j++) {
+    for (let i = 0; i < grid.w; i++) {
+      const vx = grid.get(i, j, 0), vy = grid.get(i, j, 1);
+      const spd = Math.sqrt(vx*vx + vy*vy);
+      const [r, g, b] = heatmap(spd, 0, 0.05);
+      const k = (j * grid.w + i) * 4;
+      idata.data[k] = r; idata.data[k+1] = g; idata.data[k+2] = b; idata.data[k+3] = 255;
+    }
+  }
+  ctx.putImageData(idata, 0, 0);
+  // overlay arrows (scaled canvas)
+  const scale = canvas.width / grid.w;
+  ctx.save();
+  ctx.scale(scale, scale);
+  const step = 4;
+  for (let j = step/2; j < grid.h; j += step) {
+    for (let i = step/2; i < grid.w; i += step) {
+      const vx = grid.get(i, j, 0), vy = grid.get(i, j, 1);
+      const spd = Math.sqrt(vx*vx + vy*vy);
+      if (spd < 0.0001) continue;
+      const len = Math.min(spd * 800, step * 0.45);
+      const nx = vx / spd, ny = vy / spd;
+      const x0 = i + 0.5, y0 = j + 0.5;
+      ctx.strokeStyle = `rgba(203,166,247,0.85)`;
+      ctx.lineWidth = 0.3;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x0 + nx * len, y0 + ny * len);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawObstacle(canvas, grid) {
+  const ctx = canvas.getContext('2d');
+  const idata = ctx.createImageData(grid.w, grid.h);
+  for (let j = 0; j < grid.h; j++) {
+    for (let i = 0; i < grid.w; i++) {
+      const v = grid.get(i, j);
+      const c = v > U.obstacleThresholdFluid ? 160 : 30;
+      const k = (j * grid.w + i) * 4;
+      idata.data[k] = c; idata.data[k+1] = c; idata.data[k+2] = c; idata.data[k+3] = 255;
+    }
+  }
+  ctx.putImageData(idata, 0, 0);
+}
+
+function drawWaveRT(canvas, grid) {
+  const ctx = canvas.getContext('2d');
+  const idata = ctx.createImageData(grid.w, grid.h);
+  for (let j = 0; j < grid.h; j++) {
+    for (let i = 0; i < grid.w; i++) {
+      const amp = grid.get(i, j, 2);
+      const [r, g, b] = heatmap(amp, -0.1, 0.1);
+      const k = (j * grid.w + i) * 4;
+      idata.data[k]=r; idata.data[k+1]=g; idata.data[k+2]=b; idata.data[k+3]=255;
+    }
+  }
+  ctx.putImageData(idata, 0, 0);
+  // draw particle positions
+  const sc = canvas.width / grid.w;
+  ctx.save(); ctx.scale(sc, sc);
+  for (const p of particles) {
+    const px = (p.x * 0.5 + 0.5) * grid.w;
+    const py = (p.y * 0.5 + 0.5) * grid.h;
+    ctx.beginPath();
+    ctx.arc(px, py, 2.5, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(166,227,161,0.9)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(px + p.dx * 6, py + p.dy * 6);
+    ctx.strokeStyle = 'rgba(166,227,161,0.6)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawFinal(canvas) {
+  // composite: velocity drives color, wave height drives brightness
+  const ctx = canvas.getContext('2d');
+  const idata = ctx.createImageData(N, N);
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const obs = obstacle.get(i, j);
+      const k = (j * N + i) * 4;
+      if (obs > U.obstacleThresholdFluid) {
+        idata.data[k]=80; idata.data[k+1]=80; idata.data[k+2]=80; idata.data[k+3]=255;
+        continue;
+      }
+      const vx = velPing.get(i, j, 0), vy = velPing.get(i, j, 1);
+      const spd = Math.sqrt(vx*vx + vy*vy);
+      // wave height from postV1
+      const wu = (i + 0.5) / N, wv = (j + 0.5) / N;
+      const wh = postV1.sample(wu, wv) * 8;
+      const blue = Math.max(0, Math.min(255, 80 + wh * 400 + spd * 800));
+      idata.data[k] = 10 + spd * 600 | 0;
+      idata.data[k+1] = 30 + blue * 0.3 | 0;
+      idata.data[k+2] = blue | 0;
+      idata.data[k+3] = 255;
+    }
+  }
+  ctx.putImageData(idata, 0, 0);
+}
+
+// ═══════════════════════════════════════════════
+//  Pass Definitions (for UI)
+// ═══════════════════════════════════════════════
+const passes = {
+  createObstacle: {
+    title: 'CreateObstacle',
+    color: '#f38ba8',
+    desc: '把圆形 Mesh 以 Additive Blend 画到 ObstacleCreate RT，相当于"画笔"在障碍物贴图上累积颜色',
+    formula: '// CreateObstaclePS: output += circleShape * brushStrength',
+    inputs: [
+      { label: 'ObstacleCreate (累积)', render: c => drawScalar(c, obstacleCreate, 0, 1) }
+    ],
+    output: { label: '→ ObstacleCreate', render: c => drawScalar(c, obstacleCreate, 0, 1) }
+  },
+  blurObstacleH: {
+    title: 'BlurObstacle H',
+    color: '#f38ba8',
+    desc: '水平方向对 ObstacleCreate 做高斯模糊，输出到 ObstacleBlur',
+    formula: 'dst[i,j] = Σ ObstacleCreate[i+k, j] * gaussian(k)   (k = -R..R)',
+    inputs: [
+      { label: 't0: ObstacleCreate', render: c => drawScalar(c, obstacleCreate, 0, 1) }
+    ],
+    output: { label: '→ ObstacleBlur', render: c => drawScalar(c, obstacleBlur, 0, 1) }
+  },
+  blurObstacleV: {
+    title: 'BlurObstacle V',
+    color: '#f38ba8',
+    desc: '垂直方向对 ObstacleBlur 再次高斯模糊，输出最终障碍物贴图 Obstacle',
+    formula: 'dst[i,j] = Σ ObstacleBlur[i, j+k] * gaussian(k)   (k = -R..R)',
+    inputs: [
+      { label: 't0: ObstacleBlur', render: c => drawScalar(c, obstacleBlur, 0, 1) }
+    ],
+    output: { label: '→ Obstacle (最终)', render: c => drawObstacle(c, obstacle) }
+  },
+  advectVelocity: {
+    title: 'AdvectVelocity',
+    color: '#89b4fa',
+    desc: '对流：在 VelocityPing 上做半拉格朗日反向追踪，把速度场"跟着流体走"，并乘以耗散系数',
+    formula: 'c = texCoord − dt × velocity(texCoord);\ncol = dissipation × srcTex.Sample(c);',
+    inputs: [
+      { label: 't0: Obstacle', render: c => drawObstacle(c, obstacle) },
+      { label: 't1: VelocityPing (速度场)', render: c => drawVelocity(c, velPing) },
+      { label: 't2: VelocityPing (待对流)', render: c => drawVelocity(c, velPing) },
+    ],
+    output: { label: '→ VelocityPong (对流后)', render: c => drawVelocity(c, velPong) }
+  },
+  advectDensity: {
+    title: 'AdvectDensity',
+    color: '#89b4fa',
+    desc: '同 AdvectVelocity，但对流的是密度场。用速度场采样位移，把密度"运送"到新位置',
+    formula: 'c = texCoord − dt × velocity(texCoord);\ncol = dissipation × densityTex.Sample(c);',
+    inputs: [
+      { label: 't0: Obstacle', render: c => drawObstacle(c, obstacle) },
+      { label: 't1: VelocityPing', render: c => drawVelocity(c, velPing) },
+      { label: 't2: DensityPing', render: c => drawScalar(c, denPing, 0, 1) },
+    ],
+    output: { label: '→ DensityPong', render: c => drawScalar(c, denPong, 0, 1) }
+  },
+  splatVelocity: {
+    title: 'SplatVelocity (with Vorticity)',
+    color: '#89b4fa',
+    desc: '在速度场上叠加两个力：① 全局 splatDir 注入外力；② 涡旋约束（Vorticity Confinement）—— 增强旋涡，使流体产生细节',
+    formula: 'curl = ½/cs×((vE.y−vW.y)−(vN.x−vS.x))\nforce = normalize(∇|curl|) × cs × curl × (1,−1)\ncol += splatDir × splatScale + force × dt × vorticityScale',
+    inputs: [
+      { label: 't0: Obstacle', render: c => drawObstacle(c, obstacle) },
+      { label: 't1: VelocityPing', render: c => drawVelocity(c, velPing) },
+    ],
+    output: { label: '→ VelocityPong (加力后)', render: c => drawVelocity(c, velPong) }
+  },
+  computeDivergence: {
+    title: 'ComputeDivergence',
+    color: '#89b4fa',
+    desc: '计算速度场的散度（∇·u）。不可压缩流体要求散度为0，此步计算当前"违反程度"',
+    formula: 'col = ½/cellSize × (vE.x − vW.x + vN.y − vS.y)',
+    inputs: [
+      { label: 't0: Obstacle', render: c => drawObstacle(c, obstacle) },
+      { label: 't1: VelocityPing', render: c => drawVelocity(c, velPing) },
+    ],
+    output: { label: '→ Divergence (蓝=负散度, 红=正)', render: c => drawScalar(c, divGrid, -2, 2) }
+  },
+  jacobi: {
+    title: 'Jacobi Pressure Solve ×40',
+    color: '#cba6f7',
+    desc: '迭代求解泊松方程 ∇²p = ∇·u，每次迭代用四邻域均值更新压力。40次后压力场收敛',
+    formula: 'alpha = −cellSize²\ncol = 1.01 × (pW+pE+pS+pN + alpha×div) × 0.25',
+    inputs: [
+      { label: 't0: Obstacle', render: c => drawObstacle(c, obstacle) },
+      { label: 't1: PressurePing', render: c => drawScalar(c, prePing, -1, 1) },
+      { label: 't2: Divergence', render: c => drawScalar(c, divGrid, -2, 2) },
+    ],
+    output: { label: '→ PressurePong (收敛中)', render: c => drawScalar(c, prePing, -1, 1) }
+  },
+  subtractGradient: {
+    title: 'SubtractGradient',
+    color: '#89b4fa',
+    desc: '从速度场中减去压力梯度，使速度场满足无散度条件（Helmholtz 分解）',
+    formula: 'grad = ½/cellSize × (pE−pW, pN−pS)\nnewV = oldV − grad',
+    inputs: [
+      { label: 't0: Obstacle', render: c => drawObstacle(c, obstacle) },
+      { label: 't1: PressurePing', render: c => drawScalar(c, prePing, -1, 1) },
+      { label: 't2: VelocityPing', render: c => drawVelocity(c, velPing) },
+    ],
+    output: { label: '→ VelocityPong (无散度)', render: c => drawVelocity(c, velPong) }
+  },
+  waveParticle: {
+    title: 'WaveParticle',
+    color: '#a6e3a1',
+    desc: '每个波粒子是一个点，VS 中按方向移动位置（带反射），PS 输出 (vx, vy, amplitude) 到 RT。多个粒子 Additive Blend 叠加',
+    formula: 'pos += speed × timeScale × direction   (bounce at ±1)\nPS: output = float4(velocity, amplitude, 1)',
+    inputs: [],
+    output: { label: '→ WaveParticle RT (高度场)', render: c => drawWaveRT(c, wpRT) }
+  },
+  postProcessH: {
+    title: 'PostProcess H (Wave Filter)',
+    color: '#a6e3a1',
+    desc: '水平方向用特殊滤波核（基于 cos 的波形核 GetFilter）卷积 WaveParticle RT，展开波形并提取高度导数',
+    formula: 'GetFilter(v) = (0.5(cos(πv)+1), −0.5sin(πv), −0.25(cos(2πv)+cos(πv)))\nf1 += (ampL+ampR)×filter[0]   // height',
+    inputs: [
+      { label: 't0: WaveParticle RT', render: c => drawWaveRT(c, wpRT) }
+    ],
+    output: { label: '→ PostProcessH1 (H方向高度)', render: c => drawScalar(c, postH1, -0.5, 0.5) }
+  },
+  postProcessV: {
+    title: 'PostProcess V (Wave Filter)',
+    color: '#a6e3a1',
+    desc: '垂直方向继续卷积，得到最终的高度/法线场。PostV1=高度，PostV2=导数（用于计算法线）',
+    formula: '与 H Pass 相同，但沿 V 方向采样 PostProcessH1/H2',
+    inputs: [
+      { label: 't0: PostProcessH1', render: c => drawScalar(c, postH1, -0.5, 0.5) },
+      { label: 't1: PostProcessH2', render: c => drawScalar(c, postH2, -0.5, 0.5) },
+    ],
+    output: { label: '→ PostProcessV1 (最终高度场)', render: c => drawScalar(c, postV1, -0.5, 0.5) }
+  },
+  waterSurface: {
+    title: 'WaterSurface (最终渲染)',
+    color: '#fab387',
+    desc: '曲面细分渲染水面。Domain Shader 用 PostV1/V2 做顶点偏移，PS 用速度场做 Flow Map UV 偏移贴图采样，并计算 Fresnel 反射',
+    formula: '// DS: vertex.y += PostV1.Sample(uv) × heightScale\n// PS: uvFlow = uv + velocity × flowSpeed\n// col = lerp(waterColor, skyColor, fresnel)',
+    inputs: [
+      { label: 't1: VelocityPing', render: c => drawVelocity(c, velPing) },
+      { label: 't2: PostV1 (高度)', render: c => drawScalar(c, postV1, -0.5, 0.5) },
+      { label: 't7: Obstacle', render: c => drawObstacle(c, obstacle) },
+    ],
+    output: { label: '→ 最终画面 (近似)', render: c => drawFinal(c) }
+  }
+};
+
+// ═══════════════════════════════════════════════
+//  UI
+// ═══════════════════════════════════════════════
+let currentPass = 'waterSurface';
+
+function makeCanvas(w, h, displayW, displayH) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.style.width = displayW + 'px';
+  c.style.height = displayH + 'px';
+  c.className = 'tex-canvas';
+  return c;
+}
+
+function renderPass(passId) {
+  currentPass = passId;
+  // highlight node
+  document.querySelectorAll('.pass-node').forEach(n => n.classList.remove('active'));
+  const node = document.querySelector(`.pass-node[data-pass="${passId}"]`);
+  if (node) node.classList.add('active');
+
+  const p = passes[passId];
+  document.getElementById('pass-title').textContent = p.title;
+  document.getElementById('pass-title').style.color = p.color;
+  document.getElementById('pass-desc').textContent = p.desc;
+  document.getElementById('formula-text').textContent = p.formula;
+
+  // inputs
+  const row = document.getElementById('textures-row');
+  row.innerHTML = '';
+  const gridSz = 128, waveSz = 96;
+
+  for (let i = 0; i < p.inputs.length; i++) {
+    if (i > 0) {
+      const arrow = document.createElement('div');
+      arrow.className = 'tex-arrow';
+      arrow.textContent = '';
+      row.appendChild(arrow);
+    }
+    const inp = p.inputs[i];
+    const box = document.createElement('div'); box.className = 'tex-box';
+    const name = document.createElement('div'); name.className = 'tex-name'; name.textContent = inp.label;
+    const isWave = inp.label.toLowerCase().includes('wave') || inp.label.toLowerCase().includes('post');
+    const sz = isWave ? waveSz : gridSz;
+    const gridW = isWave ? NW : N, gridH = isWave ? NW : N;
+    const cv = makeCanvas(gridW, gridH, sz, sz);
+    inp.render(cv);
+    box.appendChild(name);
+    box.appendChild(cv);
+    // click to enlarge
+    cv.addEventListener('click', () => { cv.style.width = cv.style.width === '200px' ? sz+'px' : '200px'; cv.style.height = cv.style.height === '200px' ? sz+'px' : '200px'; });
+    row.appendChild(box);
+  }
+
+  // output
+  const outRow = document.getElementById('output-row');
+  outRow.innerHTML = '';
+  const arrowEl = document.createElement('div');
+  arrowEl.style.cssText = 'color:#45475a;font-size:20px;padding:8px 0;width:100%;';
+  arrowEl.textContent = '▼ 输出';
+  outRow.appendChild(arrowEl);
+  const box = document.createElement('div'); box.className = 'tex-box';
+  const name = document.createElement('div'); name.className = 'tex-name'; name.textContent = p.output.label;
+  const isWaveOut = passId.includes('wave') || passId.includes('postProcess');
+  const isFinal = passId === 'waterSurface';
+  let ow, oh, odw;
+  if (isFinal) { ow = N; oh = N; odw = 160; }
+  else if (isWaveOut) { ow = NW; oh = NW; odw = 128; }
+  else { ow = N; oh = N; odw = 160; }
+  const cv = makeCanvas(ow, oh, odw, odw);
+  if (isFinal) cv.id = 'final-canvas';
+  p.output.render(cv);
+  box.appendChild(name);
+  box.appendChild(cv);
+  outRow.appendChild(box);
+
+  // mouse interact on final
+  if (isFinal) setupInteraction(cv);
+}
+
+function setupInteraction(canvas) {
+  let isDown = false, rightBtn = false;
+  canvas.addEventListener('mousedown', e => {
+    isDown = true; rightBtn = e.button === 2;
+    handleMouse(e, canvas, rightBtn);
+  });
+  canvas.addEventListener('mousemove', e => { if (isDown) handleMouse(e, canvas, rightBtn); });
+  canvas.addEventListener('mouseup', () => isDown = false);
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+function handleMouse(e, canvas, isRight) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width;
+  const y = (e.clientY - rect.top)  / rect.height;
+  const i = Math.floor(x * N), j = Math.floor(y * N);
+  if (isRight) {
+    // draw obstacle
+    for (let di = -2; di <= 2; di++)
+      for (let dj = -2; dj <= 2; dj++) {
+        obstacleCreate.add(i+di, j+dj, 0, 0.3);
+      }
+    blurH(obstacleCreate, obstacleBlur, 3);
+    blurV(obstacleBlur, obstacle, 3);
+  } else {
+    // inject velocity
+    for (let di = -1; di <= 1; di++)
+      for (let dj = -1; dj <= 1; dj++) {
+        velPing.add(i+di, j+dj, 0,  0.05);
+        velPing.add(i+di, j+dj, 1, -0.02);
+      }
+  }
+  log(`${isRight ? '🧱 障碍物' : '💧 速度注入'} at (${i}, ${j})`);
+}
+
+function updateUI() {
+  document.getElementById('status').textContent = `Frame: ${frameCount}`;
+  document.getElementById('jacobi-label').textContent = `${jacobiStep}/${JACOBI_ITERS}`;
+  document.getElementById('jacobi-fill').style.width = (jacobiStep / JACOBI_ITERS * 100) + '%';
+  renderPass(currentPass);
+}
+
+let logLines = [];
+function log(msg) {
+  logLines.push(msg);
+  if (logLines.length > 80) logLines.shift();
+  document.getElementById('log').innerHTML = logLines.map(l => `<div>${l}</div>`).join('');
+  document.getElementById('log').scrollTop = 1e9;
+}
+
+// controls
+document.getElementById('btn-run').addEventListener('click', () => {
+  running = !running;
+  document.getElementById('btn-run').textContent = running ? '⏸ 暂停' : '▶ 运行';
+  document.getElementById('btn-run').classList.toggle('active', running);
+  if (running) loop();
+});
+document.getElementById('btn-step').addEventListener('click', () => {
+  running = false;
+  document.getElementById('btn-run').textContent = '▶ 运行';
+  document.getElementById('btn-run').classList.remove('active');
+  step();
+  log(`[Frame ${frameCount}] 手动步进`);
+});
+document.getElementById('btn-reset').addEventListener('click', () => {
+  running = false;
+  if (raf) { cancelAnimationFrame(raf); raf = null; }
+  document.getElementById('btn-run').textContent = '▶ 运行';
+  document.getElementById('btn-run').classList.remove('active');
+  initState();
+  updateUI();
+  log('已重置');
+});
+
+// pipeline node clicks
+document.querySelectorAll('.pass-node').forEach(node => {
+  node.addEventListener('click', () => {
+    renderPass(node.dataset.pass);
+    log(`→ 查看 Pass: ${node.dataset.pass}`);
+  });
+});
+
+function loop() {
+  if (!running) return;
+  step();
+  raf = requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════
+//  Boot
+// ═══════════════════════════════════════════════
+initState();
+renderPass('waterSurface');
+log('初始化完成。点击左侧 Pass 节点查看各阶段详情。');
+log('提示: 在最终画面上 左键注入速度，右键绘制障碍物');
+log('──────────────────────────────────────────');
+log('管线顺序: Obstacle → Fluid (Advect/Splat/Divergence/Jacobi/Gradient) → WaveParticle → PostProcess → WaterSurface');
+</script>
+</body>
+</html>

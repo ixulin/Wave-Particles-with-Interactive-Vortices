@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>流体模拟教学 Demo — 逐步管线</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { display: flex; flex-direction: column; height: 100vh; background: #0d1117; color: #c9d1d9; font-family: Consolas, monospace; font-size: 13px; overflow: hidden; }
+
+/* ── 顶部工具栏 ── */
+#toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; background: #161b22; border-bottom: 1px solid #30363d;
+  flex-wrap: wrap; flex-shrink: 0;
+}
+#toolbar h1 { font-size: 13px; color: #58a6ff; margin-right: 8px; white-space: nowrap; }
+.sep { width: 1px; height: 20px; background: #30363d; }
+.tool-btn {
+  padding: 3px 10px; border: 1px solid #30363d; border-radius: 4px;
+  background: #21262d; color: #c9d1d9; cursor: pointer; font-size: 12px;
+  transition: all .12s; white-space: nowrap;
+}
+.tool-btn:hover { background: #30363d; }
+.tool-btn.active { border-color: #58a6ff; color: #58a6ff; background: #0d2137; }
+.tool-btn.green.active { border-color: #3fb950; color: #3fb950; background: #0d2a17; }
+.tool-btn.red.active   { border-color: #f85149; color: #f85149; background: #2a0d0d; }
+label { color: #8b949e; font-size: 11px; }
+input[type=range] { width: 70px; accent-color: #58a6ff; }
+input[type=number] { width: 48px; background: #21262d; border: 1px solid #30363d; color: #c9d1d9; border-radius: 3px; padding: 2px 4px; text-align: center; }
+select { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; border-radius: 3px; padding: 3px 6px; font-size: 12px; cursor: pointer; }
+
+/* ── 主体 ── */
+#main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── 画布区 ── */
+#canvas-wrap {
+  position: relative; background: #0d1117; flex: 1; display: flex;
+  align-items: center; justify-content: center; overflow: hidden;
+}
+#canvas { cursor: crosshair; image-rendering: pixelated; display: block; }
+#canvas-label {
+  position: absolute; top: 6px; left: 8px; font-size: 11px; color: #8b949e;
+  background: rgba(13,17,23,.75); padding: 2px 8px; border-radius: 3px;
+  pointer-events: none;
+}
+#vel-dir-hint {
+  position: absolute; bottom: 8px; left: 8px; font-size: 11px; color: #f0883e;
+  background: rgba(13,17,23,.8); padding: 3px 8px; border-radius: 3px;
+  pointer-events: none; display: none;
+}
+
+/* ── 右侧管线面板 ── */
+#pipeline {
+  width: 260px; min-width: 260px; background: #161b22; border-left: 1px solid #30363d;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#pipeline-title {
+  padding: 7px 12px; font-size: 11px; color: #8b949e; text-transform: uppercase;
+  letter-spacing: .8px; border-bottom: 1px solid #30363d; flex-shrink: 0;
+}
+#steps-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+.step-item {
+  padding: 7px 12px; border-left: 3px solid transparent; cursor: pointer;
+  transition: background .1s;
+}
+.step-item:hover { background: #21262d; }
+.step-item.active   { border-left-color: #f0883e; background: #1c1a13; }
+.step-item.done     { border-left-color: #3fb950; }
+.step-item.pending  { border-left-color: #30363d; opacity: .55; }
+.step-name { font-weight: bold; font-size: 12px; }
+.step-item.active .step-name { color: #f0883e; }
+.step-item.done   .step-name { color: #3fb950; }
+.step-desc  { color: #8b949e; font-size: 10px; margin-top: 2px; line-height: 1.4; }
+.step-formula { color: #79c0ff; font-size: 10px; margin-top: 3px; line-height: 1.5; font-style: italic; }
+.jacobi-bar-wrap { margin-top: 4px; }
+.jacobi-bar { height: 4px; background: #21262d; border-radius: 2px; overflow: hidden; }
+.jacobi-fill { height: 100%; background: #bc8cff; transition: width .05s; }
+.jacobi-text { color: #bc8cff; font-size: 10px; margin-top: 2px; }
+
+/* ── 底部控制 ── */
+#controls {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; background: #161b22; border-top: 1px solid #30363d;
+  flex-shrink: 0; flex-wrap: wrap;
+}
+#ctrl-btn-run  { border-color: #3fb950; color: #3fb950; }
+#ctrl-btn-run:hover  { background: #0d2a17; }
+#ctrl-btn-run.active { background: #0d2a17; }
+#step-info { color: #8b949e; font-size: 11px; flex: 1; }
+</style>
+</head>
+<body>
+
+<!-- ════════════ 顶部工具栏 ════════════ -->
+<div id="toolbar">
+  <h1>⚡ Fluid Sim 教学 Demo</h1>
+  <div class="sep"></div>
+
+  <label>画笔:</label>
+  <button class="tool-btn active"       id="t-obs"  onclick="setTool('obstacle')">🧱 障碍物</button>
+  <button class="tool-btn green"        id="t-vel"  onclick="setTool('velocity')">💨 速度</button>
+  <button class="tool-btn"             id="t-den"  onclick="setTool('density')">🌊 密度</button>
+  <button class="tool-btn red"          id="t-era"  onclick="setTool('erase')">🗑 橡皮</button>
+  <label>半径:</label>
+  <input type="range" id="brush-size" min="2" max="20" value="6" style="width:60px">
+  <span id="brush-val" style="color:#8b949e;font-size:11px">6</span>
+
+  <div class="sep"></div>
+  <label>视图:</label>
+  <select id="view-mode" onchange="viewMode=this.value;redraw()">
+    <option value="velocity">速度场 (箭头)</option>
+    <option value="density">密度场</option>
+    <option value="pressure">压力场</option>
+    <option value="divergence">散度场</option>
+    <option value="obstacle">障碍物</option>
+  </select>
+
+  <div class="sep"></div>
+  <label>速度方向 (°):</label>
+  <input type="number" id="vel-angle" value="0" min="-180" max="180">
+  <label>强度:</label>
+  <input type="range" id="vel-strength" min="1" max="20" value="8">
+</div>
+
+<!-- ════════════ 主体 ════════════ -->
+<div id="main">
+
+  <!-- 画布 -->
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div id="canvas-label">视图: 速度场</div>
+    <div id="vel-dir-hint">拖动方向 = 注入速度方向</div>
+  </div>
+
+  <!-- 右侧管线 -->
+  <div id="pipeline">
+    <div id="pipeline-title">📋 管线步骤 (当前帧)</div>
+    <div id="steps-list"></div>
+  </div>
+</div>
+
+<!-- ════════════ 底部控制 ════════════ -->
+<div id="controls">
+  <button class="tool-btn" id="ctrl-btn-run" onclick="toggleRun()">▶ 自动运行</button>
+  <button class="tool-btn" onclick="doNextSubStep()">▶ 下一子步</button>
+  <button class="tool-btn" onclick="doNextFrame()">⏭ 下一完整帧</button>
+  <button class="tool-btn" onclick="resetSim()">↺ 重置</button>
+  <div class="sep"></div>
+  <label>Jacobi 迭代数:</label>
+  <input type="number" id="jacobi-n" value="20" min="1" max="80" style="width:44px">
+  <div class="sep"></div>
+  <div id="step-info">帧: 0 | 步: —</div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════
+//  参数 & 网格
+// ═══════════════════════════════════════
+const N    = 128;          // 格子数
+const CELL = 4;            // 每格显示像素数
+const W    = N * CELL;     // canvas 像素宽高 = 512
+
+const canvas = document.getElementById('canvas');
+canvas.width  = W;
+canvas.height = W;
+const ctx = canvas.getContext('2d');
+
+// 物理参数
+let DT         = 0.15;    // 时间步
+let DISSIPATION= 0.995;   // 速度/密度耗散
+let CELL_SIZE  = 1.0;     // 格子物理尺寸（用于散度/Jacobi）
+
+// ─── 存储场 (Float32Array, 长度 N*N) ───
+function mkGrid() { return new Float32Array(N * N); }
+
+// 速度场 (两分量，分开存)
+let velX = mkGrid(), velY = mkGrid(); // ping
+let velX2= mkGrid(), velY2= mkGrid(); // pong
+
+// 密度场
+let den  = mkGrid(), den2 = mkGrid();
+
+// 压力场
+let pre  = mkGrid(), pre2 = mkGrid();
+
+// 散度
+let div  = mkGrid();
+
+// 障碍物 (0=流体 1=固体)
+let obs  = mkGrid();
+
+let frameCount = 0;
+
+// ═══════════════════════════════════════
+//  工具函数
+// ═══════════════════════════════════════
+// 取格子索引（clamp 边界）
+function idx(i, j) {
+  i = Math.max(0, Math.min(N-1, i));
+  j = Math.max(0, Math.min(N-1, j));
+  return j * N + i;
+}
+// 取格子索引（wrap）
+function idxW(i, j) {
+  i = ((i % N) + N) % N;
+  j = ((j % N) + N) % N;
+  return j * N + i;
+}
+
+// 双线性采样 (u,v ∈ [0,N])
+function sampleGrid(grid, u, v) {
+  // clamp
+  u = Math.max(0.5, Math.min(N - 0.5, u));
+  v = Math.max(0.5, Math.min(N - 0.5, v));
+  const i0 = Math.floor(u - 0.5), j0 = Math.floor(v - 0.5);
+  const fx = (u - 0.5) - i0, fy = (v - 0.5) - j0;
+  const i1 = i0 + 1, j1 = j0 + 1;
+  return grid[idx(i0,j0)]*(1-fx)*(1-fy) + grid[idx(i1,j0)]*fx*(1-fy)
+       + grid[idx(i0,j1)]*(1-fx)*fy     + grid[idx(i1,j1)]*fx*fy;
+}
+
+function swap(a, b) { return [b, a]; } // 帮助 ping-pong
+
+// 重置所有场
+function resetSim() {
+  velX.fill(0); velY.fill(0); velX2.fill(0); velY2.fill(0);
+  den.fill(0);  den2.fill(0);
+  pre.fill(0);  pre2.fill(0);
+  div.fill(0);  obs.fill(0);
+  frameCount = 0;
+  pipelineReset();
+  redraw();
+  setStepInfo('帧: 0 | 已重置');
+}
+
+// ═══════════════════════════════════════
+//  管线状态机
+// ═══════════════════════════════════════
+const STEPS = [
+  {
+    id: 'advect_vel',
+    name: '1. Advect Velocity',
+    desc: '对流：速度场跟着自己走。反向追踪上一帧位置，采样速度值填入新场。',
+    formula: 'prev = pos − dt × vel(pos)\nvelNew = vel.sample(prev) × dissipation',
+    color: '#58a6ff',
+  },
+  {
+    id: 'advect_den',
+    name: '2. Advect Density',
+    desc: '密度对流：密度被速度场"携带"运动。同 Advect Velocity，但源是密度场。',
+    formula: 'prev = pos − dt × vel(pos)\ndenNew = den.sample(prev) × dissipation',
+    color: '#58a6ff',
+  },
+  {
+    id: 'splat',
+    name: '3. Splat (外力注入)',
+    desc: '将用户绘制的外力叠加到速度场中（鼠标速度/速度画笔）。',
+    formula: 'vel += userForce × strength',
+    color: '#58a6ff',
+  },
+  {
+    id: 'divergence',
+    name: '4. Compute Divergence',
+    desc: '计算速度场的散度 ∇·u。不可压缩流体要求 div=0，此步量化"不满足程度"。',
+    formula: 'div = ½/h × (vE.x−vW.x + vN.y−vS.y)',
+    color: '#d29922',
+  },
+  {
+    id: 'jacobi',
+    name: '5. Jacobi Pressure Solve',
+    desc: '迭代求解泊松方程 ∇²p = div，求出压力场。迭代次数越多越收敛。',
+    formula: 'p_new = (pW+pE+pS+pN − h²×div) / 4',
+    color: '#bc8cff',
+    hasProgress: true,
+  },
+  {
+    id: 'gradient',
+    name: '6. Subtract Gradient',
+    desc: '从速度场中减去压力梯度，使速度场变为无散度（满足不可压缩条件）。',
+    formula: 'vel −= ∇p = ½/h × (pE−pW, pN−pS)',
+    color: '#58a6ff',
+  },
+];
+
+// 当前帧正在执行到哪个步骤
+let curStepIdx   = -1;  // -1 = 这帧还没开始
+let jacobiIter   = 0;
+let jacobiTotal  = 20;
+let autoRun      = false;
+let autoRafId    = null;
+
+function pipelineReset() {
+  curStepIdx = -1;
+  jacobiIter = 0;
+  buildStepList();
+}
+
+function buildStepList() {
+  const list = document.getElementById('steps-list');
+  list.innerHTML = '';
+  STEPS.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'step-item ' + stepState(i);
+    div.id = 'step-' + i;
+    div.innerHTML = `
+      <div class="step-name" style="color:${i===curStepIdx ? s.color : ''}">${s.name}</div>
+      <div class="step-desc">${s.desc}</div>
+      <div class="step-formula">${s.formula.replace(/\n/g,'<br>')}</div>
+      ${s.hasProgress ? `<div class="jacobi-bar-wrap">
+        <div class="jacobi-bar"><div class="jacobi-fill" id="jbar" style="width:0%"></div></div>
+        <div class="jacobi-text" id="jtext">0 / ${jacobiTotal}</div>
+      </div>` : ''}
+    `;
+    div.onclick = () => jumpToStep(i);
+    list.appendChild(div);
+  });
+  if (curStepIdx >= 0 && STEPS[curStepIdx].hasProgress) updateJacobiBar();
+}
+
+function stepState(i) {
+  if (i < curStepIdx)  return 'done';
+  if (i === curStepIdx) return 'active';
+  return 'pending';
+}
+
+function updateJacobiBar() {
+  const bar  = document.getElementById('jbar');
+  const text = document.getElementById('jtext');
+  if (bar)  bar.style.width = (jacobiIter / jacobiTotal * 100) + '%';
+  if (text) text.textContent = `${jacobiIter} / ${jacobiTotal}`;
+}
+
+function jumpToStep(i) {
+  // 允许查看：只刷新高亮
+  STEPS.forEach((_, j) => {
+    const el = document.getElementById('step-' + j);
+    if (el) el.className = 'step-item ' + stepState(j);
+  });
+}
+
+// ── 执行一个子步 ──
+function doNextSubStep() {
+  jacobiTotal = parseInt(document.getElementById('jacobi-n').value) || 20;
+
+  if (curStepIdx === -1) {
+    // 开始新帧
+    frameCount++;
+    curStepIdx = 0;
+    buildStepList();
+    log(`▶ 帧 ${frameCount} 开始`);
+    execStep(0);
+    return;
+  }
+
+  const s = STEPS[curStepIdx];
+
+  // Jacobi 步骤内部迭代
+  if (s.hasProgress && jacobiIter < jacobiTotal) {
+    jacobiIterStep();
+    updateJacobiBar();
+    if (jacobiIter >= jacobiTotal) {
+      // Jacobi 全部完成，推进到下一步
+      advanceStep();
+    }
+    redraw();
+    return;
+  }
+
+  // 普通步骤：推进到下一步
+  if (curStepIdx < STEPS.length - 1) {
+    advanceStep();
+  } else {
+    // 最后一步完成，帧结束
+    curStepIdx = -1;
+    buildStepList();
+    log(`✅ 帧 ${frameCount} 完成`);
+    setStepInfo(`帧: ${frameCount} | 完成，点"下一子步"开始下一帧`);
+  }
+  redraw();
+}
+
+function advanceStep() {
+  curStepIdx++;
+  jacobiIter = 0;
+  buildStepList();
+  execStep(curStepIdx);
+}
+
+function execStep(i) {
+  const s = STEPS[i];
+  log(`  → 执行: ${s.name}`);
+  setStepInfo(`帧: ${frameCount} | 步: ${s.name}`);
+
+  switch (s.id) {
+    case 'advect_vel':   runAdvectVel();   break;
+    case 'advect_den':   runAdvectDen();   break;
+    case 'splat':        /* 已在鼠标事件中实时处理 */ log('    (外力已实时注入，跳过)'); break;
+    case 'divergence':   runDivergence();  break;
+    case 'jacobi':
+      pre.fill(0); // 清空压力场开始迭代
+      jacobiIter = 0;
+      log(`    Jacobi: 清空压力场，开始 ${jacobiTotal} 次迭代...`);
+      updateJacobiBar();
+      break;
+    case 'gradient':     runSubtractGrad(); break;
+  }
+  redraw();
+}
+
+function doNextFrame() {
+  jacobiTotal = parseInt(document.getElementById('jacobi-n').value) || 20;
+  // 执行完当前帧剩余步骤 + 开始+完成下一帧
+  if (curStepIdx === -1) {
+    runFullFrame();
+  } else {
+    // 先把当前帧剩余步骤跑完
+    finishCurrentFrame();
+    // 再跑一帧
+    runFullFrame();
+  }
+  redraw();
+  buildStepList();
+  setStepInfo(`帧: ${frameCount} | 已完成`);
+}
+
+function finishCurrentFrame() {
+  if (curStepIdx === -1) return;
+  const s = STEPS[curStepIdx];
+  if (s.id === 'jacobi') {
+    // 补完剩余 Jacobi 迭代
+    while (jacobiIter < jacobiTotal) jacobiIterStep();
+    curStepIdx++;
+    if (curStepIdx < STEPS.length) execStep(curStepIdx);
+  }
+  // 跑后续所有步
+  for (let i = curStepIdx + 1; i < STEPS.length; i++) {
+    curStepIdx = i;
+    execStepFull(i);
+  }
+  curStepIdx = -1;
+  jacobiIter = 0;
+}
+
+function runFullFrame() {
+  frameCount++;
+  log(`▶▶ 帧 ${frameCount}`);
+  for (let i = 0; i < STEPS.length; i++) {
+    curStepIdx = i;
+    execStepFull(i);
+  }
+  curStepIdx = -1;
+  jacobiIter = 0;
+}
+
+function execStepFull(i) {
+  switch (STEPS[i].id) {
+    case 'advect_vel':  runAdvectVel();   break;
+    case 'advect_den':  runAdvectDen();   break;
+    case 'splat':       /* 实时注入，不重复 */ break;
+    case 'divergence':  runDivergence();  break;
+    case 'jacobi':
+      pre.fill(0);
+      for (let k = 0; k < jacobiTotal; k++) jacobiIterStep();
+      break;
+    case 'gradient':    runSubtractGrad(); break;
+  }
+}
+
+function toggleRun() {
+  autoRun = !autoRun;
+  const btn = document.getElementById('ctrl-btn-run');
+  btn.textContent = autoRun ? '⏸ 暂停' : '▶ 自动运行';
+  btn.classList.toggle('active', autoRun);
+  if (autoRun) autoLoop();
+}
+
+function autoLoop() {
+  if (!autoRun) return;
+  doNextFrame();
+  autoRafId = requestAnimationFrame(autoLoop);
+}
+
+// ═══════════════════════════════════════
+//  物理计算 (逐步，对应 HLSL)
+// ═══════════════════════════════════════
+
+// ── Advect Velocity (AdvectPS.hlsl) ──
+// c = texCoord − dt × velocity(texCoord)
+// velNew = dissipation × vel.sample(c)
+function runAdvectVel() {
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      if (obs[idx(i,j)] > 0.5) {
+        velX2[idx(i,j)] = 0;
+        velY2[idx(i,j)] = 0;
+        continue;
+      }
+      // 当前格子中心位置（以格子数为单位）
+      const u = i + 0.5, v = j + 0.5;
+      // 采样当前速度
+      const vx = velX[idx(i,j)], vy = velY[idx(i,j)];
+      // 反向追踪
+      const pu = u - DT * vx, pv = v - DT * vy;
+      // 在上一时刻位置采样速度
+      velX2[idx(i,j)] = DISSIPATION * sampleGrid(velX, pu, pv);
+      velY2[idx(i,j)] = DISSIPATION * sampleGrid(velY, pu, pv);
+    }
+  }
+  [velX, velX2] = [velX2, velX];
+  [velY, velY2] = [velY2, velY];
+}
+
+// ── Advect Density ──
+function runAdvectDen() {
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      if (obs[idx(i,j)] > 0.5) { den2[idx(i,j)] = 0; continue; }
+      const u = i + 0.5, v = j + 0.5;
+      const vx = velX[idx(i,j)], vy = velY[idx(i,j)];
+      const pu = u - DT * vx, pv = v - DT * vy;
+      den2[idx(i,j)] = DISSIPATION * sampleGrid(den, pu, pv);
+    }
+  }
+  [den, den2] = [den2, den];
+}
+
+// ── Compute Divergence (ComputeDivergencePS.hlsl) ──
+// div = 0.5/h * (vE.x − vW.x + vN.y − vS.y)
+function runDivergence() {
+  const half = 0.5 / CELL_SIZE;
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      let vEx = velX[idx(i+1,j)], vWx = velX[idx(i-1,j)];
+      let vNy = velY[idx(i,j+1)], vSy = velY[idx(i,j-1)];
+      // 障碍物边界：邻格是固体则速度归零
+      if (i+1 < N && obs[idx(i+1,j)] > 0.5) vEx = 0;
+      if (i-1 >= 0 && obs[idx(i-1,j)] > 0.5) vWx = 0;
+      if (j+1 < N && obs[idx(i,j+1)] > 0.5) vNy = 0;
+      if (j-1 >= 0 && obs[idx(i,j-1)] > 0.5) vSy = 0;
+      div[idx(i,j)] = half * (vEx - vWx + vNy - vSy);
+    }
+  }
+}
+
+// ── 单次 Jacobi 迭代 (JacobiPS.hlsl) ──
+// p_new = 1.01 * (pW+pE+pS+pN − h²×div) * 0.25
+function jacobiIterStep() {
+  const alpha = -(CELL_SIZE * CELL_SIZE);
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const pC = pre[idx(i,j)];
+      let pN = pre[idx(i,j+1)], pS = pre[idx(i,j-1)];
+      let pE = pre[idx(i+1,j)], pW = pre[idx(i-1,j)];
+      // 障碍物边界：用中心压力代替
+      if (j+1 >= N || obs[idx(i,j+1)] > 0.5) pN = pC;
+      if (j-1 < 0  || obs[idx(i,j-1)] > 0.5) pS = pC;
+      if (i+1 >= N || obs[idx(i+1,j)] > 0.5) pE = pC;
+      if (i-1 < 0  || obs[idx(i-1,j)] > 0.5) pW = pC;
+      pre2[idx(i,j)] = 1.01 * (pW + pE + pS + pN + alpha * div[idx(i,j)]) * 0.25;
+    }
+  }
+  // ping-pong
+  const tmp = pre; pre = pre2; pre2 = tmp;
+  // pre2 是临时变量，直接原地交换数组引用
+  jacobiIter++;
+}
+
+// ── Subtract Gradient (SubtractGradientPS.hlsl) ──
+// grad = 0.5/h * (pE−pW, pN−pS)
+// vel −= grad
+function runSubtractGrad() {
+  const half = 0.5 / CELL_SIZE;
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      if (obs[idx(i,j)] > 0.5) { velX[idx(i,j)] = 0; velY[idx(i,j)] = 0; continue; }
+      const pC = pre[idx(i,j)];
+      let pN = pre[idx(i,j+1)], pS = pre[idx(i,j-1)];
+      let pE = pre[idx(i+1,j)], pW = pre[idx(i-1,j)];
+      let maskX = 1, maskY = 1;
+      if (j+1 >= N || obs[idx(i,j+1)] > 0.5) { pN = pC; maskY = 0; }
+      if (j-1 < 0  || obs[idx(i,j-1)] > 0.5) { pS = pC; maskY = 0; }
+      if (i+1 >= N || obs[idx(i+1,j)] > 0.5) { pE = pC; maskX = 0; }
+      if (i-1 < 0  || obs[idx(i-1,j)] > 0.5) { pW = pC; maskX = 0; }
+      velX[idx(i,j)] -= maskX * half * (pE - pW);
+      velY[idx(i,j)] -= maskY * half * (pN - pS);
+    }
+  }
+}
+
+// ═══════════════════════════════════════
+//  可视化 (ImageData)
+// ═══════════════════════════════════════
+let viewMode = 'velocity';
+
+// 色彩映射：蓝→白→红（标量场）
+function heatRGB(v, lo, hi) {
+  const t = Math.max(0, Math.min(1, (v - lo) / ((hi - lo) || 1)));
+  let r, g, b;
+  if (t < 0.5) { r = t*2*255|0; g = t*2*255|0; b = 255; }
+  else          { r = 255; g = (1-(t-.5)*2)*255|0; b = (1-(t-.5)*2)*255|0; }
+  return [r, g, b];
+}
+// 速度大小色：黑→青→白
+function speedRGB(spd, max) {
+  const t = Math.min(1, spd / max);
+  const r = (t * 200) | 0;
+  const g = (t * 255) | 0;
+  const b = (t * 255) | 0;
+  return [r, g, b];
+}
+// 密度色：黑→橙→白
+function densityRGB(v) {
+  const t = Math.max(0, Math.min(1, v));
+  const r = (t * 255)     | 0;
+  const g = (t * t * 180) | 0;
+  const b = (t * 50)      | 0;
+  return [r, g, b];
+}
+
+function redraw() {
+  const idata = ctx.createImageData(W, W);
+  const d = idata.data;
+  const vm = document.getElementById('view-mode').value;
+  document.getElementById('canvas-label').textContent = '视图: ' + document.getElementById('view-mode').selectedOptions[0].text;
+
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const solid = obs[idx(i,j)] > 0.5;
+      let r = 0, g = 0, b = 0;
+
+      if (solid) {
+        r = 120; g = 100; b = 80;
+      } else {
+        switch (vm) {
+          case 'velocity': {
+            const vx = velX[idx(i,j)], vy = velY[idx(i,j)];
+            const spd = Math.sqrt(vx*vx + vy*vy);
+            [r,g,b] = speedRGB(spd, 3);
+            break;
+          }
+          case 'density':
+            [r,g,b] = densityRGB(den[idx(i,j)]);
+            break;
+          case 'pressure':
+            [r,g,b] = heatRGB(pre[idx(i,j)], -2, 2);
+            break;
+          case 'divergence':
+            [r,g,b] = heatRGB(div[idx(i,j)], -1, 1);
+            break;
+          case 'obstacle':
+            [r,g,b] = [30,30,40];
+            break;
+        }
+      }
+
+      // 写入 CELL×CELL 块
+      for (let pj = 0; pj < CELL; pj++) {
+        for (let pi = 0; pi < CELL; pi++) {
+          const k = ((j*CELL + pj)*W + (i*CELL + pi)) * 4;
+          d[k] = r; d[k+1] = g; d[k+2] = b; d[k+3] = 255;
+        }
+      }
+    }
+  }
+
+  ctx.putImageData(idata, 0, 0);
+
+  // 速度箭头覆盖（每 6 格一个箭头）
+  if (vm === 'velocity') {
+    ctx.save();
+    const step = 6;
+    for (let j = step/2|0; j < N; j += step) {
+      for (let i = step/2|0; i < N; i += step) {
+        if (obs[idx(i,j)] > 0.5) continue;
+        const vx = velX[idx(i,j)], vy = velY[idx(i,j)];
+        const spd = Math.sqrt(vx*vx + vy*vy);
+        if (spd < 0.01) continue;
+        const scale = Math.min(spd * 40, step * CELL * 0.45);
+        const nx = vx/spd, ny = vy/spd;
+        const cx = (i + 0.5) * CELL, cy = (j + 0.5) * CELL;
+        const ex = cx + nx * scale, ey = cy + ny * scale;
+        // 箭头线
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey); ctx.stroke();
+        // 箭头头
+        const hw = 2.5, hlen = 5;
+        const px = -ny, py = nx;
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.beginPath();
+        ctx.moveTo(ex, ey);
+        ctx.lineTo(ex - nx*hlen + px*hw, ey - ny*hlen + py*hw);
+        ctx.lineTo(ex - nx*hlen - px*hw, ey - ny*hlen - py*hw);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  // 格子网格（仅在缩放后能看清时）
+  if (CELL >= 4) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= N; i++) {
+      ctx.beginPath(); ctx.moveTo(i*CELL,0); ctx.lineTo(i*CELL,W); ctx.stroke();
+    }
+    for (let j = 0; j <= N; j++) {
+      ctx.beginPath(); ctx.moveTo(0,j*CELL); ctx.lineTo(W,j*CELL); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// ═══════════════════════════════════════
+//  鼠标交互
+// ═══════════════════════════════════════
+let tool = 'obstacle';
+let mouseDown = false;
+let lastMX = -1, lastMY = -1;
+
+function setTool(t) {
+  tool = t;
+  ['obs','vel','den','era'].forEach(id => document.getElementById('t-'+id).classList.remove('active'));
+  const map = { obstacle:'obs', velocity:'vel', density:'den', erase:'era' };
+  document.getElementById('t-'+map[t]).classList.add('active');
+  document.getElementById('vel-dir-hint').style.display = (t==='velocity') ? 'block' : 'none';
+  log(`工具切换: ${t}`);
+}
+
+function canvasXY(e) {
+  const r = canvas.getBoundingClientRect();
+  const scaleX = W / r.width, scaleY = W / r.height;
+  const px = (e.clientX - r.left) * scaleX;
+  const py = (e.clientY - r.top)  * scaleY;
+  return [px / CELL | 0, py / CELL | 0]; // 格子坐标
+}
+
+canvas.addEventListener('mousedown', e => {
+  e.preventDefault();
+  mouseDown = true;
+  const [i, j] = canvasXY(e);
+  lastMX = i; lastMY = j;
+  paint(i, j, 0, 0);
+  redraw();
+});
+canvas.addEventListener('mousemove', e => {
+  if (!mouseDown) return;
+  const [i, j] = canvasXY(e);
+  const di = i - lastMX, dj = j - lastMY;
+  paint(i, j, di, dj);
+  lastMX = i; lastMY = j;
+  redraw();
+});
+canvas.addEventListener('mouseup',    () => mouseDown = false);
+canvas.addEventListener('mouseleave', () => mouseDown = false);
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+document.getElementById('brush-size').addEventListener('input', function() {
+  document.getElementById('brush-val').textContent = this.value;
+});
+
+function paint(ci, cj, di, dj) {
+  const radius = parseInt(document.getElementById('brush-size').value);
+  const strength = parseInt(document.getElementById('vel-strength').value) * 0.1;
+  const angleDeg = parseFloat(document.getElementById('vel-angle').value);
+  const angleRad = angleDeg * Math.PI / 180;
+
+  for (let ddy = -radius; ddy <= radius; ddy++) {
+    for (let ddx = -radius; ddx <= radius; ddx++) {
+      const d2 = ddx*ddx + ddy*ddy;
+      if (d2 > radius*radius) continue;
+      const ii = ci + ddx, jj = cj + ddy;
+      if (ii < 0 || ii >= N || jj < 0 || jj >= N) continue;
+      const falloff = 1 - Math.sqrt(d2) / radius;
+
+      switch (tool) {
+        case 'obstacle':
+          obs[idx(ii,jj)] = 1;
+          velX[idx(ii,jj)] = 0;
+          velY[idx(ii,jj)] = 0;
+          break;
+        case 'erase':
+          obs[idx(ii,jj)] = 0;
+          break;
+        case 'velocity': {
+          // 用鼠标拖动方向 或 输入角度
+          let vx, vy;
+          if (Math.abs(di) + Math.abs(dj) > 0) {
+            const len = Math.sqrt(di*di+dj*dj);
+            vx = di/len * strength; vy = dj/len * strength;
+          } else {
+            vx = Math.cos(angleRad) * strength;
+            vy = Math.sin(angleRad) * strength;
+          }
+          if (obs[idx(ii,jj)] < 0.5) {
+            velX[idx(ii,jj)] += vx * falloff;
+            velY[idx(ii,jj)] += vy * falloff;
+          }
+          break;
+        }
+        case 'density':
+          if (obs[idx(ii,jj)] < 0.5)
+            den[idx(ii,jj)] = Math.min(1, den[idx(ii,jj)] + falloff * 0.5);
+          break;
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════
+//  日志
+// ═══════════════════════════════════════
+const logLines = [];
+function log(msg) {
+  logLines.push(msg);
+  if (logLines.length > 120) logLines.shift();
+  // 把日志显示在 step-info
+}
+function setStepInfo(msg) {
+  document.getElementById('step-info').textContent = msg;
+}
+
+// ═══════════════════════════════════════
+//  初始化
+// ═══════════════════════════════════════
+resetSim();
+redraw();
+setStepInfo('帧: 0 | 就绪 — 用鼠标在画布上添加障碍物/速度，然后点"下一子步"或"下一完整帧"');
+log('初始化完成');
+</script>
+</body>
+</html>

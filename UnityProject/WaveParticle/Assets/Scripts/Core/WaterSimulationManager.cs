@@ -1,3 +1,4 @@
+
 using UnityEngine;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
@@ -60,8 +61,8 @@ public class WaterSimulationManager : MonoBehaviour
         obstacleSystem.RunBlurPass();
 
         // 2. Fluid simulation (every N frames)
-        // if (frameCount % _param.fluidSimulationInterval == 0)
-        fluidSimulator.RunFullPipeline();
+        if (frameCount % _param.fluidSimulationInterval == 0)
+            fluidSimulator.RunFullPipeline();
 
         // 3. Wave particle rasterization
         waveParticleSystem.Rasterize(frameCount);
@@ -104,6 +105,7 @@ public class WaterSimulationManager : MonoBehaviour
                 brushUV.y = Mathf.Clamp01(brushUV.y);
                 pendingObstacleDraw = true;
             }
+            UnityEngine.Debug.Break(); // For profiling input handling and interaction logic
         }
 
         if (Input.GetKeyDown(KeyCode.C) && obstacleSystem != null)
@@ -185,7 +187,7 @@ public class WaterSimulationManager : MonoBehaviour
         _param = param; // Store reference for sub-systems
         if (param == null)
         {
-            Debug.LogWarning("WaterSimulationManager: SimulationParameters not assigned, using defaults.");
+            UnityEngine.Debug.LogWarning("WaterSimulationManager: SimulationParameters not assigned, using defaults.");
             param = ScriptableObject.CreateInstance<SimulationParameters>();
         }
         AllocateRenderTextures();

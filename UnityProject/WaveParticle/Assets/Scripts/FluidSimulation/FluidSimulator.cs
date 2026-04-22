@@ -6,7 +6,7 @@ public class FluidSimulator
     readonly SimulationParameters param;
     readonly WaterSimulationManager mgr;
 
-    readonly Mesh     fullscreenQuad;
+    readonly Mesh fullscreenQuad;
     readonly Material matAdvect;
     readonly Material matSplatVorticity;
     readonly Material matSplatDensity;
@@ -144,7 +144,7 @@ public class FluidSimulator
     static Mesh BuildFullscreenQuad()
     {
         var m = new Mesh { name = "FullscreenQuad" };
-        m.vertices  = new[] { new Vector3(-1,-1,0), new Vector3(1,-1,0), new Vector3(-1,1,0), new Vector3(1,1,0) };
+        m.vertices = new[] { new Vector3(-1, -1, 0), new Vector3(1, -1, 0), new Vector3(-1, 1, 0), new Vector3(1, 1, 0) };
         m.triangles = new[] { 0, 2, 1, 2, 3, 1 };
         m.RecalculateBounds();
         return m;

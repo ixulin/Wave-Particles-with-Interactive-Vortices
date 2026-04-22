@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: WaterParams
   m_EditorClassIdentifier: 
   heightScale: 0.14
-  waveParticleSpeedScale: 0.00005
-  flowSpeed: 0.000931
+  waveParticleSpeedScale: 0.0001
+  flowSpeed: 0
   dxScale: 0.03
   dzScale: 0.03
   timeScale: 1.3
@@ -26,13 +26,13 @@ MonoBehaviour:
   vorticityScale: 0.64
   splatDirU: 1
   splatDirV: 0
-  splatScale: 0.00593
+  splatScale: 0
   splatDensityU: 0.5
   splatDensityV: 0.5
   splatDensityRadius: 0.1
   splatDensityScale: 0.01
   jacobiIterations: 40
-  fluidSimulationInterval: 30
+  fluidSimulationInterval: 1
   brushScale: 0.1
   brushStrength: 1
   obstacleScale: 1.8

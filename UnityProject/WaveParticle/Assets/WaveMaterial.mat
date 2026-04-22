@@ -105,16 +105,16 @@ Material:
     - _DzScale: 0.03
     - _EdgeTessFactor: 7
     - _ExtinctionCoeff: -0.41
-    - _FlowSpeed: 0.000931
+    - _FlowSpeed: 0
     - _FoamPow: 9.6
-    - _FoamScale: 6.21
+    - _FoamScale: 5
     - _FresnelBias: 0
     - _FresnelPow: 3
-    - _FresnelScale: 0.5
+    - _FresnelScale: 0.68
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _HeightScale: 0.06521735
+    - _HeightScale: 0.14
     - _InsideTessFactor: 5
     - _LightHeight: 9.35
     - _Metallic: 0
@@ -122,13 +122,13 @@ Material:
     - _ObstacleThresholdWave: 0.12
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _Shininess: 471.7391
+    - _Shininess: 340
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _TextureHeight: 500
     - _TextureWidth: 500
-    - _TimeScale: 1.09
+    - _TimeScale: 1.3
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:

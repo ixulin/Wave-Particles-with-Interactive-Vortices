@@ -57,4 +57,5 @@ public class SimulationParameters : ScriptableObject
     public float fresnelScale = 0.68f;
     public float foamPow = 9.6f;
     public int renderMode = 11;
+    public float fluidHeightScale = 0.5f;
 }

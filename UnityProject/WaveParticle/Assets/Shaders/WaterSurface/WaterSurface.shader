@@ -36,6 +36,7 @@ Shader "Water/WaterSurface"
         _ObstacleThresholdWave  ("Obstacle Threshold Wave",  Float) = 0.12
         _TextureWidth           ("Texture Width",            Float) = 500
         _TextureHeight          ("Texture Height",           Float) = 500
+        _FluidHeightScale       ("Fluid Pressure -> Height", Float) = 0.5
     }
 
     SubShader
@@ -94,6 +95,7 @@ Shader "Water/WaterSurface"
             float _ObstacleThresholdWave;
             float _TextureWidth;
             float _TextureHeight;
+            float _FluidHeightScale;
 
             // ---- Vertex Shader (pass-through, feeds hull shader) ----
             VS_CONTROL_POINT_OUTPUT vert_water(VS_INPUT v)
@@ -153,6 +155,9 @@ Shader "Water/WaterSurface"
                         pos.y += deviation.y;
                         pos.x += deviation.x;
                         pos.z += deviation.z;
+
+                        float pressure = _PressureTex.SampleLevel(sampler_linear_clamp, texCoord, 0).x;
+                        pos.y += pressure * _FluidHeightScale;
                     }
                 }
 

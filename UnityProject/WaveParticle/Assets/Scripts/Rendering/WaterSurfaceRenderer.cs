@@ -39,6 +39,7 @@ public class WaterSurfaceRenderer
     static readonly int ID_obstThreshW = Shader.PropertyToID("_ObstacleThresholdWave");
     static readonly int ID_dxScale = Shader.PropertyToID("_DxScale");
     static readonly int ID_dzScale = Shader.PropertyToID("_DzScale");
+    static readonly int ID_fluidHeightScale = Shader.PropertyToID("_FluidHeightScale");
 
     public WaterSurfaceRenderer(SimulationParameters param, WaterSimulationManager mgr,
                                  Texture2D foamTex, Texture2D flowmapTex, Material mat)
@@ -110,6 +111,7 @@ public class WaterSurfaceRenderer
         mat.SetFloat(ID_foamScale, param.foamScale);
         mat.SetFloat(ID_foamPow, param.foamPow);
         mat.SetFloat(ID_obstThreshW, param.obstacleThresholdWave);
+        mat.SetFloat(ID_fluidHeightScale, param.fluidHeightScale);
 
         // Obstacle visual mesh
         if (obstacleVisualMat != null)

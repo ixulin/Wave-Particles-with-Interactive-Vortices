@@ -69,15 +69,15 @@ public class FluidSimulator
         SetGlobalUniforms();
 
         RunAdvect(mgr.rtVelocity);
-        RunAdvect(mgr.rtDensity);
-        RunSplatVorticity();
-        RunInjectWaveVelocity();
+        // RunAdvect(mgr.rtDensity);
+        // RunSplatVorticity();
+        // RunInjectWaveVelocity();
         if (pendingImpulse)
         {
             RunSplatVelocityImpulse();
             pendingImpulse = false;
         }
-        RunSplatDensity();
+        // RunSplatDensity();
         RunDivergence();
         RunJacobi();
         RunSubtractGradient();

@@ -11,6 +11,7 @@ public class FluidSimulator
     readonly Material matSplatVorticity;
     readonly Material matSplatDensity;
     readonly Material matSplatImpulse;
+    readonly Material matInjectWave;
     readonly Material matDivergence;
     readonly Material matJacobi;
     readonly Material matSubtractGradient;
@@ -41,6 +42,8 @@ public class FluidSimulator
     static readonly int ID_impulseU = Shader.PropertyToID("_ImpulseU");
     static readonly int ID_impulseV = Shader.PropertyToID("_ImpulseV");
     static readonly int ID_impulseStrength = Shader.PropertyToID("_ImpulseStrength");
+    static readonly int ID_waveParticleTex = Shader.PropertyToID("_WaveParticleTex");
+    static readonly int ID_waveInjectStrength = Shader.PropertyToID("_WaveInjectStrength");
 
     bool pendingImpulse;
     Vector2 pendingImpulseCenter;
@@ -55,6 +58,7 @@ public class FluidSimulator
         matSplatVorticity = Load("Water/Fluid_SplatVorticity");
         matSplatDensity = Load("Water/Fluid_SplatDensity");
         matSplatImpulse = Load("Water/Fluid_SplatVelocityImpulse");
+        matInjectWave = Load("Water/Fluid_InjectWaveVelocity");
         matDivergence = Load("Water/Fluid_Divergence");
         matJacobi = Load("Water/Fluid_Jacobi");
         matSubtractGradient = Load("Water/Fluid_SubtractGradient");
@@ -67,6 +71,7 @@ public class FluidSimulator
         RunAdvect(mgr.rtVelocity);
         RunAdvect(mgr.rtDensity);
         RunSplatVorticity();
+        RunInjectWaveVelocity();
         if (pendingImpulse)
         {
             RunSplatVelocityImpulse();
@@ -106,6 +111,17 @@ public class FluidSimulator
         matSplatVorticity.SetFloat(ID_splatDirV, param.splatDirV);
         matSplatVorticity.SetFloat(ID_splatScale, param.splatScale);
         Blit(mgr.rtVelocity.Next, matSplatVorticity);
+        mgr.rtVelocity.Swap();
+    }
+
+    void RunInjectWaveVelocity()
+    {
+        if (mgr.rtWaveParticle == null) return;
+        matInjectWave.SetTexture(ID_obstacleTex, mgr.rtObstacleFinal);
+        matInjectWave.SetTexture(ID_velocityTex, mgr.rtVelocity.Current);
+        matInjectWave.SetTexture(ID_waveParticleTex, mgr.rtWaveParticle);
+        matInjectWave.SetFloat(ID_waveInjectStrength, param.waveInjectStrength);
+        Blit(mgr.rtVelocity.Next, matInjectWave);
         mgr.rtVelocity.Swap();
     }
 

@@ -83,6 +83,7 @@
     <None Include="Assets\Shaders\FluidSimulation\Fluid_SplatVelocityImpulse.shader" />
     <None Include="Assets\Shaders\FluidSimulation\Fluid_Jacobi.shader" />
     <None Include="Assets\Shaders\FluidSimulation\Fluid_Advect.shader" />
+    <None Include="Assets\Shaders\FluidSimulation\Fluid_InjectWaveVelocity.shader" />
     <None Include="Assets\Shaders\WaveParticles\WaveParticle_Rasterize.shader" />
     <None Include="Assets\Shaders\FluidSimulation\Fluid_SplatDensity.shader" />
     <None Include="Assets\Shaders\Obstacle\Obstacle_BlurH.shader" />

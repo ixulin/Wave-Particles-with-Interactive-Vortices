@@ -57,3 +57,4 @@ MonoBehaviour:
   renderMode: 11
   fluidHeightScale: 0.5
   fluidParticleStrength: 0.02
+  waveInjectStrength: 200

@@ -19,6 +19,10 @@ Shader "Water/WaveParticle_Rasterize"
             float _TimeScale;
             int   _Time_Custom;
 
+            Texture2D    _VelocityTex;
+            SamplerState sampler_linear_clamp;
+            float _FluidParticleStrength;
+
             WAVE_PARTICLE vert(VS_INPUT v)
             {
                 WAVE_PARTICLE o;
@@ -48,6 +52,10 @@ Shader "Water/WaveParticle_Rasterize"
                         pos.y    = sign(pos.y) * offset.y + sign(pos.y) * -1;
                     }
                 }
+
+                float2 uv = pos * 0.5 + 0.5;
+                float2 fluidVel = _VelocityTex.SampleLevel(sampler_linear_clamp, uv, 0).xy;
+                pos += fluidVel * _FluidParticleStrength;
 
                 o.pos       = float4(pos, 0.5, 1.0);
                 o.velocity  = direction * speed;

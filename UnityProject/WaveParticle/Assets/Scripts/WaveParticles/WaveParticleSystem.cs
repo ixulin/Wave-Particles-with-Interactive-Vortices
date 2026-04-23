@@ -13,6 +13,8 @@ public class WaveParticleSystem
     static readonly int ID_waveParticleSpeedScale = Shader.PropertyToID("_WaveParticleSpeedScale");
     static readonly int ID_timeScale              = Shader.PropertyToID("_TimeScale");
     static readonly int ID_time                   = Shader.PropertyToID("_Time_Custom");
+    static readonly int ID_velocityTex            = Shader.PropertyToID("_VelocityTex");
+    static readonly int ID_fluidParticleStrength  = Shader.PropertyToID("_FluidParticleStrength");
 
     public WaveParticleSystem(SimulationParameters param, WaterSimulationManager mgr)
     {
@@ -28,6 +30,8 @@ public class WaveParticleSystem
         particleMaterial.SetFloat(ID_waveParticleSpeedScale, param.waveParticleSpeedScale);
         particleMaterial.SetFloat(ID_timeScale,              param.timeScale);
         particleMaterial.SetInt(ID_time,                     frameTime);
+        particleMaterial.SetTexture(ID_velocityTex,          mgr.rtVelocity.Current);
+        particleMaterial.SetFloat(ID_fluidParticleStrength,  param.fluidParticleStrength);
 
         using var cb = new CommandBuffer { name = "WaveParticle Rasterize" };
         cb.SetRenderTarget(mgr.rtWaveParticle);

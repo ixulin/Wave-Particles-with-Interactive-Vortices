@@ -58,4 +58,5 @@ public class SimulationParameters : ScriptableObject
     public float foamPow = 9.6f;
     public int renderMode = 11;
     public float fluidHeightScale = 0.5f;
+    public float fluidParticleStrength = 0.02f;
 }

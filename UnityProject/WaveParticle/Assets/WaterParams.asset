@@ -56,3 +56,4 @@ MonoBehaviour:
   foamPow: 9.6
   renderMode: 11
   fluidHeightScale: 0.5
+  fluidParticleStrength: 0.02

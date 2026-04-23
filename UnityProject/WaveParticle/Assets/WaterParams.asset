@@ -32,7 +32,7 @@ MonoBehaviour:
   splatDensityRadius: 0.1
   splatDensityScale: 0.01
   jacobiIterations: 40
-  fluidSimulationInterval: 1
+  fluidSimulationInterval: 10
   velocityImpulseRadius: 0.08
   velocityImpulseStrength: 1.5
   brushScale: 0.1

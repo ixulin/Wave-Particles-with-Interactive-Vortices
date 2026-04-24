@@ -71,5 +71,4 @@ public class SimulationParameters : ScriptableObject
     public int renderMode = 11;
     public float fluidHeightScale = 0.5f;
     public float fluidParticleStrength = 0.02f;
-    public float waveInjectStrength = 200f;
 }

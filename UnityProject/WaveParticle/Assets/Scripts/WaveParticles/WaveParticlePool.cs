@@ -101,6 +101,30 @@ public class WaveParticlePool
         }
     }
 
+    public void BuildRenderData(
+        System.Collections.Generic.List<Vector3> vertices,
+        System.Collections.Generic.List<Vector2> uvs,
+        System.Collections.Generic.List<Vector3> normals,
+        System.Collections.Generic.List<int> indices)
+    {
+        vertices.Clear();
+        uvs.Clear();
+        normals.Clear();
+        indices.Clear();
+
+        for (int i = 0; i < particles.Length; i++)
+        {
+            if (!particles[i].active)
+                continue;
+
+            var p = particles[i];
+            vertices.Add(new Vector3(p.pos.x, p.pos.y, p.amplitude));
+            uvs.Add(p.dir);
+            normals.Add(new Vector3(0f, 0f, p.speed));
+            indices.Add(indices.Count);
+        }
+    }
+
     int FindInactiveSlot()
     {
         for (int i = 0; i < particles.Length; i++)

@@ -62,4 +62,25 @@ public class WaveParticlePoolTests
         Assert.AreEqual(4, pool.ActiveCount);
         Assert.AreEqual(4, pool.AmbientCount);
     }
+
+    [Test]
+    public void BuildRenderData_EncodesPosAmplitudeDirectionAndSpeed()
+    {
+        var pool = new WaveParticlePool(capacity: 4);
+        pool.SpawnEventRing(Vector2.zero, 1, 2f, 0.5f, 1f);
+
+        var vertices = new System.Collections.Generic.List<Vector3>();
+        var uvs = new System.Collections.Generic.List<Vector2>();
+        var normals = new System.Collections.Generic.List<Vector3>();
+        var indices = new System.Collections.Generic.List<int>();
+
+        pool.BuildRenderData(vertices, uvs, normals, indices);
+
+        Assert.AreEqual(1, vertices.Count);
+        Assert.AreEqual(1, uvs.Count);
+        Assert.AreEqual(1, normals.Count);
+        Assert.AreEqual(1, indices.Count);
+        Assert.That(vertices[0].z, Is.EqualTo(0.5f).Within(0.001f));
+        Assert.That(normals[0].z, Is.EqualTo(2f).Within(0.001f));
+    }
 }

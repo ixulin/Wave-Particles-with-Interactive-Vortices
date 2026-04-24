@@ -6,32 +6,70 @@ public class WaveParticleSystem
     readonly SimulationParameters  param;
     readonly WaterSimulationManager mgr;
 
-    readonly Mesh     particleMesh;
+    readonly Mesh particleMesh;
     readonly Material particleMaterial;
+    readonly WaveParticlePool particlePool;
+    readonly WaveVelocityCache velocityCache;
+    readonly System.Collections.Generic.List<Vector3> vertices = new();
+    readonly System.Collections.Generic.List<Vector2> uvs = new();
+    readonly System.Collections.Generic.List<Vector3> normals = new();
+    readonly System.Collections.Generic.List<int> indices = new();
+    readonly System.Random random = new(0);
+    int readbackFrame;
 
-    static readonly int ID_heightScale            = Shader.PropertyToID("_HeightScale");
-    static readonly int ID_waveParticleSpeedScale = Shader.PropertyToID("_WaveParticleSpeedScale");
-    static readonly int ID_timeScale              = Shader.PropertyToID("_TimeScale");
-    static readonly int ID_time                   = Shader.PropertyToID("_Time_Custom");
-    static readonly int ID_velocityTex            = Shader.PropertyToID("_VelocityTex");
-    static readonly int ID_fluidParticleStrength  = Shader.PropertyToID("_FluidParticleStrength");
+    static readonly int ID_heightScale = Shader.PropertyToID("_HeightScale");
 
     public WaveParticleSystem(SimulationParameters param, WaterSimulationManager mgr)
     {
         this.param = param;
-        this.mgr   = mgr;
-        particleMesh     = BuildParticleMesh(6000);
+        this.mgr = mgr;
+        particleMesh = new Mesh { name = "WaveParticlesDynamic" };
+        particleMesh.indexFormat = IndexFormat.UInt32;
         particleMaterial = Load("Water/WaveParticle_Rasterize");
+        particlePool = new WaveParticlePool(8192);
+        velocityCache = new WaveVelocityCache();
+        particlePool.ResetAmbient(
+            param.ambientParticleCount,
+            param.ambientParticleAmplitudeMin,
+            param.ambientParticleAmplitudeMax,
+            param.ambientParticleSpeedMin,
+            param.ambientParticleSpeedMax,
+            random);
     }
 
-    public void Rasterize(int frameTime)
+    public void Step(float dt)
     {
-        particleMaterial.SetFloat(ID_heightScale,            param.heightScale);
-        particleMaterial.SetFloat(ID_waveParticleSpeedScale, param.waveParticleSpeedScale);
-        particleMaterial.SetFloat(ID_timeScale,              param.timeScale);
-        particleMaterial.SetInt(ID_time,                     frameTime);
-        particleMaterial.SetTexture(ID_velocityTex,          mgr.rtVelocity.Current);
-        particleMaterial.SetFloat(ID_fluidParticleStrength,  param.fluidParticleStrength);
+        readbackFrame++;
+        if (readbackFrame % Mathf.Max(1, param.velocityReadbackInterval) == 0)
+            velocityCache.TrySchedule(mgr.rtVelocity.Current);
+
+        particlePool.Step(
+            dt,
+            param.fluidParticleStrength,
+            param.eventAmplitudeDamping,
+            velocityCache.Sample);
+    }
+
+    public void SpawnEventRing(Vector2 center)
+    {
+        particlePool.SpawnEventRing(
+            center,
+            param.eventParticlesPerSpawn,
+            param.eventParticleSpeed,
+            param.eventParticleAmplitude,
+            param.eventParticleLife);
+    }
+
+    public void Rasterize()
+    {
+        particlePool.BuildRenderData(vertices, uvs, normals, indices);
+        particleMesh.Clear();
+        particleMesh.SetVertices(vertices);
+        particleMesh.SetUVs(0, uvs);
+        particleMesh.SetNormals(normals);
+        particleMesh.SetIndices(indices, MeshTopology.Points, 0);
+
+        particleMaterial.SetFloat(ID_heightScale, param.heightScale);
 
         using var cb = new CommandBuffer { name = "WaveParticle Rasterize" };
         cb.SetRenderTarget(mgr.rtWaveParticle);
@@ -39,46 +77,6 @@ public class WaveParticleSystem
         cb.SetViewport(new Rect(0, 0, param.textureWidth, param.textureHeight));
         cb.DrawMesh(particleMesh, Matrix4x4.identity, particleMaterial, 0, 0);
         Graphics.ExecuteCommandBuffer(cb);
-    }
-
-    // Vertices encode wave particle data:
-    //   pos.xy   = initial position [-1, 1]
-    //   pos.z    = amplitude (height)
-    //   uv       = direction (normalized)
-    //   normal.z = speed
-    static Mesh BuildParticleMesh(int count)
-    {
-        var vertices = new Vector3[count];
-        var uvs      = new Vector2[count];
-        var normals  = new Vector3[count];
-        var indices  = new int[count];
-        var rng      = new System.Random(0);
-
-        for (int i = 0; i < count; i++)
-        {
-            float px  = (float)(rng.NextDouble() * 2.0 - 1.0);
-            float py  = (float)(rng.NextDouble() * 2.0 - 1.0);
-            float amp = (float)(rng.NextDouble() * 0.1 + 0.2);
-            float dx  = (float)(rng.NextDouble() * 2.0 - 1.0);
-            float dy  = (float)(rng.NextDouble() * 2.0 - 1.0);
-            float spd = (float)rng.NextDouble();
-
-            float len = Mathf.Sqrt(dx * dx + dy * dy);
-            if (len > 0f) { dx /= len; dy /= len; }
-
-            vertices[i] = new Vector3(px, py, amp);
-            uvs[i]      = new Vector2(dx, dy);
-            normals[i]  = new Vector3(0f, 0f, spd);
-            indices[i]  = i;
-        }
-
-        var mesh = new Mesh { name = "WaveParticles" };
-        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-        mesh.vertices    = vertices;
-        mesh.uv          = uvs;
-        mesh.normals     = normals;
-        mesh.SetIndices(indices, MeshTopology.Points, 0);
-        return mesh;
     }
 
     static Material Load(string name)

@@ -69,7 +69,8 @@ public class WaterSimulationManager : MonoBehaviour
             fluidSimulator.RunFullPipeline();
 
         // 3. Wave particle rasterization
-        waveParticleSystem.Rasterize(frameCount);
+        waveParticleSystem.Step(Time.deltaTime);
+        waveParticleSystem.Rasterize();
 
         // 4. Fourier post-process
         wavePostProcess.RunHorizontalPass();

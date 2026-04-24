@@ -20,6 +20,18 @@ MonoBehaviour:
   timeScale: 1.3
   foamScale: 5
   blurRadius: 15
+  ambientParticleCount: 2048
+  ambientParticleSpeedMin: 0.05
+  ambientParticleSpeedMax: 0.2
+  ambientParticleAmplitudeMin: 0.03
+  ambientParticleAmplitudeMax: 0.08
+  eventParticlesPerSpawn: 12
+  eventParticleSpeed: 0.6
+  eventParticleAmplitude: 0.2
+  eventParticleLife: 1.25
+  eventSpawnSpacing: 0.08
+  eventAmplitudeDamping: 0.96
+  velocityReadbackInterval: 2
   timeStepFluid: 0.03
   fluidCellSize: 0.6
   fluidDissipation: 0.994

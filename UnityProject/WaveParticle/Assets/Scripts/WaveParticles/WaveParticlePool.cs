@@ -14,7 +14,7 @@ public class WaveParticlePool
         particles = new WaveParticle[capacity];
     }
 
-    public void ResetAmbient(int ambientCount, float amplitudeMin, float amplitudeMax, float speedMin, float speedMax, Random random)
+    public void ResetAmbient(int ambientCount, float amplitudeMin, float amplitudeMax, float speedMin, float speedMax, System.Random random)
     {
         Array.Clear(particles, 0, particles.Length);
         ActiveCount = 0;

@@ -1,7 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly-CSharp", "Assembly-CSharp.csproj", "{8A0DBC52-B5BB-B850-6DD6-D85F5060B32B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WaveParticle.Runtime", "WaveParticle.Runtime.csproj", "{1898B405-C25B-B7C7-64F0-ADD9CB7E03CF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WaveParticles.EditMode", "WaveParticles.EditMode.csproj", "{7B9384C4-5CF1-28B8-3261-4E3C12B4772F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -9,10 +11,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{8A0DBC52-B5BB-B850-6DD6-D85F5060B32B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8A0DBC52-B5BB-B850-6DD6-D85F5060B32B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8A0DBC52-B5BB-B850-6DD6-D85F5060B32B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8A0DBC52-B5BB-B850-6DD6-D85F5060B32B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1898B405-C25B-B7C7-64F0-ADD9CB7E03CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1898B405-C25B-B7C7-64F0-ADD9CB7E03CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1898B405-C25B-B7C7-64F0-ADD9CB7E03CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1898B405-C25B-B7C7-64F0-ADD9CB7E03CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7B9384C4-5CF1-28B8-3261-4E3C12B4772F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B9384C4-5CF1-28B8-3261-4E3C12B4772F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B9384C4-5CF1-28B8-3261-4E3C12B4772F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B9384C4-5CF1-28B8-3261-4E3C12B4772F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

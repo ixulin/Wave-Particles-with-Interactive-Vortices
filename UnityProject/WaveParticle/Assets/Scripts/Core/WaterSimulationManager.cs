@@ -40,6 +40,7 @@ public class WaterSimulationManager : MonoBehaviour
     // Velocity impulse drag state
     bool draggingVelocity = false;
     Vector2 lastVelocityDragUV = Vector2.zero;
+    Vector2 lastWaveSpawnUV = Vector2.zero;
 
     void Awake()
     {
@@ -134,11 +135,11 @@ public class WaterSimulationManager : MonoBehaviour
         {
             draggingVelocity = true;
             lastVelocityDragUV = uv;
+            lastWaveSpawnUV = uv;
             return;
         }
 
         Vector2 delta = uv - lastVelocityDragUV;
-        Vector2 previousUV = lastVelocityDragUV;
         lastVelocityDragUV = uv;
 
         float dt = Mathf.Max(Time.deltaTime, 1e-4f);
@@ -149,8 +150,11 @@ public class WaterSimulationManager : MonoBehaviour
 
         if (waveParticleSystem != null)
         {
-            foreach (var center in WaveParticleDragUtil.BuildSpawnCenters(previousUV, uv, _param.eventSpawnSpacing))
+            var centers = WaveParticleDragUtil.BuildSpawnCenters(lastWaveSpawnUV, uv, _param.eventSpawnSpacing);
+            foreach (var center in centers)
                 waveParticleSystem.SpawnEventRing(center * 2f - Vector2.one);
+            if (centers.Count > 0)
+                lastWaveSpawnUV = centers[centers.Count - 1];
         }
     }
 

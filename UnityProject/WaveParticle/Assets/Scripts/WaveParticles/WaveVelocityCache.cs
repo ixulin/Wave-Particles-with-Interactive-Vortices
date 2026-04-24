@@ -17,7 +17,7 @@ public class WaveVelocityCache
             return;
 
         readbackPending = true;
-        AsyncGPUReadback.Request(source, 0, request =>
+        AsyncGPUReadback.Request(source, 0, TextureFormat.RGBAFloat, request =>
         {
             readbackPending = false;
             if (request.hasError)

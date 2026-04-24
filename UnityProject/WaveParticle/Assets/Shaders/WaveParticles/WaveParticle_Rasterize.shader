@@ -15,47 +15,14 @@ Shader "Water/WaveParticle_Rasterize"
             #include "../Include/WaterCommon.hlsl"
 
             float _HeightScale;
-            float _WaveParticleSpeedScale;
-            float _TimeScale;
-            int   _Time_Custom;
-
-            Texture2D    _VelocityTex;
-            SamplerState sampler_linear_clamp;
-            float _FluidParticleStrength;
 
             WAVE_PARTICLE vert(VS_INPUT v)
             {
                 WAVE_PARTICLE o;
-
                 float2 pos       = v.pos.xy;
                 float2 direction = normalize(v.texCoord);
                 float  height    = v.pos.z;
-                float  speed     = _WaveParticleSpeedScale * v.nor.z;
-
-                pos = pos + speed * _TimeScale * float(_Time_Custom) * direction;
-
-                float2 posAbs = abs(pos);
-                if (posAbs.x > 1.0 || posAbs.y > 1.0)
-                {
-                    float2 offset = float2(0, 0);
-                    int2   posI   = (int2)posAbs;
-                    float2 posF   = posAbs - (float2)posI;
-
-                    if (posAbs.x > 1.0)
-                    {
-                        offset.x = (posI.x - 1) % 2 + posF.x;
-                        pos.x    = sign(pos.x) * offset.x + sign(pos.x) * -1;
-                    }
-                    if (posAbs.y > 1.0)
-                    {
-                        offset.y = (posI.y - 1) % 2 + posF.y;
-                        pos.y    = sign(pos.y) * offset.y + sign(pos.y) * -1;
-                    }
-                }
-
-                float2 uv = pos * 0.5 + 0.5;
-                float2 fluidVel = _VelocityTex.SampleLevel(sampler_linear_clamp, uv, 0).xy;
-                pos += fluidVel * _FluidParticleStrength;
+                float  speed     = v.nor.z;
 
                 o.pos       = float4(pos, 0.5, 1.0);
                 o.velocity  = direction * speed;

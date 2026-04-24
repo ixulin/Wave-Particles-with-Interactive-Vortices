@@ -12,6 +12,18 @@ public class SimulationParameters : ScriptableObject
     public float timeScale = 1.3f;
     public float foamScale = 5.0f;
     public int blurRadius = 15;
+    public int ambientParticleCount = 2048;
+    public float ambientParticleSpeedMin = 0.05f;
+    public float ambientParticleSpeedMax = 0.2f;
+    public float ambientParticleAmplitudeMin = 0.03f;
+    public float ambientParticleAmplitudeMax = 0.08f;
+    public int eventParticlesPerSpawn = 12;
+    public float eventParticleSpeed = 0.6f;
+    public float eventParticleAmplitude = 0.2f;
+    public float eventParticleLife = 1.25f;
+    public float eventSpawnSpacing = 0.08f;
+    public float eventAmplitudeDamping = 0.96f;
+    public int velocityReadbackInterval = 2;
 
     [Header("Fluid Simulation")]
     public float timeStepFluid = 0.03f;
@@ -59,5 +71,4 @@ public class SimulationParameters : ScriptableObject
     public int renderMode = 11;
     public float fluidHeightScale = 0.5f;
     public float fluidParticleStrength = 0.02f;
-    public float waveInjectStrength = 200f;
 }

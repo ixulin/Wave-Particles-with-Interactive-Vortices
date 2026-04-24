@@ -40,6 +40,7 @@ public class WaterSimulationManager : MonoBehaviour
     // Velocity impulse drag state
     bool draggingVelocity = false;
     Vector2 lastVelocityDragUV = Vector2.zero;
+    Vector2 lastWaveSpawnUV = Vector2.zero;
 
     void Awake()
     {
@@ -69,7 +70,8 @@ public class WaterSimulationManager : MonoBehaviour
             fluidSimulator.RunFullPipeline();
 
         // 3. Wave particle rasterization
-        waveParticleSystem.Rasterize(frameCount);
+        waveParticleSystem.Step(Time.deltaTime);
+        waveParticleSystem.Rasterize();
 
         // 4. Fourier post-process
         wavePostProcess.RunHorizontalPass();
@@ -133,6 +135,7 @@ public class WaterSimulationManager : MonoBehaviour
         {
             draggingVelocity = true;
             lastVelocityDragUV = uv;
+            lastWaveSpawnUV = uv;
             return;
         }
 
@@ -144,6 +147,15 @@ public class WaterSimulationManager : MonoBehaviour
 
         if (velUV.sqrMagnitude > 1e-10f && fluidSimulator != null)
             fluidSimulator.QueueVelocityImpulse(uv, velUV);
+
+        if (waveParticleSystem != null)
+        {
+            var centers = WaveParticleDragUtil.BuildSpawnCenters(lastWaveSpawnUV, uv, _param.eventSpawnSpacing);
+            foreach (var center in centers)
+                waveParticleSystem.SpawnEventRing(center * 2f - Vector2.one);
+            if (centers.Count > 0)
+                lastWaveSpawnUV = centers[centers.Count - 1];
+        }
     }
 
     bool TryGetWaterUV(out Vector2 uv)

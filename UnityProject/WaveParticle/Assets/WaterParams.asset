@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: db2e2eb69e0d7fc4982cc682f7bc6478, type: 3}
   m_Name: WaterParams
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   heightScale: 0.14
   waveParticleSpeedScale: 0.0001
   flowSpeed: 0
@@ -20,6 +20,18 @@ MonoBehaviour:
   timeScale: 1.3
   foamScale: 5
   blurRadius: 15
+  ambientParticleCount: 2048
+  ambientParticleSpeedMin: 0.05
+  ambientParticleSpeedMax: 0.2
+  ambientParticleAmplitudeMin: 0.03
+  ambientParticleAmplitudeMax: 0.08
+  eventParticlesPerSpawn: 12
+  eventParticleSpeed: 0.6
+  eventParticleAmplitude: 0.2
+  eventParticleLife: 1.25
+  eventSpawnSpacing: 0.08
+  eventAmplitudeDamping: 0.96
+  velocityReadbackInterval: 2
   timeStepFluid: 0.03
   fluidCellSize: 0.6
   fluidDissipation: 0.994
@@ -57,4 +69,3 @@ MonoBehaviour:
   renderMode: 11
   fluidHeightScale: 0.5
   fluidParticleStrength: 0.02
-  waveInjectStrength: 200

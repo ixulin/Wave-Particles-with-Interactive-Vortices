@@ -43,7 +43,6 @@ public class FluidSimulator
     static readonly int ID_impulseV = Shader.PropertyToID("_ImpulseV");
     static readonly int ID_impulseStrength = Shader.PropertyToID("_ImpulseStrength");
     static readonly int ID_waveParticleTex = Shader.PropertyToID("_WaveParticleTex");
-    static readonly int ID_waveInjectStrength = Shader.PropertyToID("_WaveInjectStrength");
 
     bool pendingImpulse;
     Vector2 pendingImpulseCenter;
@@ -69,15 +68,11 @@ public class FluidSimulator
         SetGlobalUniforms();
 
         RunAdvect(mgr.rtVelocity);
-        // RunAdvect(mgr.rtDensity);
-        // RunSplatVorticity();
-        // RunInjectWaveVelocity();
         if (pendingImpulse)
         {
             RunSplatVelocityImpulse();
             pendingImpulse = false;
         }
-        // RunSplatDensity();
         RunDivergence();
         RunJacobi();
         RunSubtractGradient();
@@ -120,7 +115,6 @@ public class FluidSimulator
         matInjectWave.SetTexture(ID_obstacleTex, mgr.rtObstacleFinal);
         matInjectWave.SetTexture(ID_velocityTex, mgr.rtVelocity.Current);
         matInjectWave.SetTexture(ID_waveParticleTex, mgr.rtWaveParticle);
-        matInjectWave.SetFloat(ID_waveInjectStrength, param.waveInjectStrength);
         Blit(mgr.rtVelocity.Next, matInjectWave);
         mgr.rtVelocity.Swap();
     }

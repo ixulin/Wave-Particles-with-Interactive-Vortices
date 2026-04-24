@@ -138,6 +138,7 @@ public class WaterSimulationManager : MonoBehaviour
         }
 
         Vector2 delta = uv - lastVelocityDragUV;
+        Vector2 previousUV = lastVelocityDragUV;
         lastVelocityDragUV = uv;
 
         float dt = Mathf.Max(Time.deltaTime, 1e-4f);
@@ -145,6 +146,12 @@ public class WaterSimulationManager : MonoBehaviour
 
         if (velUV.sqrMagnitude > 1e-10f && fluidSimulator != null)
             fluidSimulator.QueueVelocityImpulse(uv, velUV);
+
+        if (waveParticleSystem != null)
+        {
+            foreach (var center in WaveParticleDragUtil.BuildSpawnCenters(previousUV, uv, _param.eventSpawnSpacing))
+                waveParticleSystem.SpawnEventRing(center * 2f - Vector2.one);
+        }
     }
 
     bool TryGetWaterUV(out Vector2 uv)

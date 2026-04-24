@@ -83,4 +83,17 @@ public class WaveParticlePoolTests
         Assert.That(vertices[0].z, Is.EqualTo(0.5f).Within(0.001f));
         Assert.That(normals[0].z, Is.EqualTo(2f).Within(0.001f));
     }
+
+    [Test]
+    public void DragSpawner_EmitsCentersAtConfiguredSpacing()
+    {
+        var centers = WaveParticleDragUtil.BuildSpawnCenters(
+            lastUv: new Vector2(0f, 0f),
+            currentUv: new Vector2(0.25f, 0f),
+            spacing: 0.1f);
+
+        Assert.AreEqual(2, centers.Count);
+        Assert.That(centers[0].x, Is.EqualTo(0.1f).Within(0.001f));
+        Assert.That(centers[1].x, Is.EqualTo(0.2f).Within(0.001f));
+    }
 }
